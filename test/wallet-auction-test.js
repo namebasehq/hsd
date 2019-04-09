@@ -6,7 +6,6 @@
 
 const assert = require('bsert');
 const Chain = require('../lib/blockchain/chain');
-const {states} = require('../lib/covenants/namestate');
 const WorkerPool = require('../lib/workers/workerpool');
 const Miner = require('../lib/mining/miner');
 const WalletDB = require('../lib/wallet/walletdb');
@@ -15,13 +14,7 @@ const rules = require('../lib/covenants/rules');
 const Address = require('../lib/primitives/address');
 
 const network = Network.get('regtest');
-const NAME1 = rules.grindName(5, 2, network);
-const {
-  treeInterval,
-  biddingPeriod,
-  revealPeriod
-
-} = network.names;
+const NAME1 = rules.grindName(10, 20, network);
 
 const workers = new WorkerPool({
   enabled: false
@@ -46,35 +39,45 @@ const wdb = new WalletDB({
 });
 
 describe('Wallet Auction', function() {
-  let winner, openAuctionMTX, openAuctionMTX2;
+  this.timeout(15000);
 
-  before(async () => {
-    // Open
+  let winner;
+  const currentCBMaturity = network.coinbaseMaturity;
+
+  before(() => {
+    network.coinbaseMaturity = 1;
+  });
+
+  after(() => {
+    network.coinbaseMaturity = currentCBMaturity;
+  });
+
+  it('should open chain, miner and wallet', async () => {
     await chain.open();
     await miner.open();
     await wdb.open();
 
-    // Set up wallet
     winner = await wdb.create();
+
     chain.on('connect', async (entry, block) => {
       await wdb.addBlock(entry, block.txs);
     });
+  });
 
-    // Generate blocks to roll out name and fund wallet
-    let winnerAddr = await winner.createReceive();
-    winnerAddr = winnerAddr.getAddress().toString(network);
-    for (let i = 0; i < 4; i++) {
-      const block = await cpu.mineBlock(null, winnerAddr);
-      await chain.add(block);
+  it('should add addrs to miner', async () => {
+    const addr = await winner.createReceive();
+    miner.addresses = [addr.getAddress().toString(network)];
+  });
+
+  it('should mine 20 blocks', async () => {
+    for (let i = 0; i < 20; i++) {
+      const block = await cpu.mineBlock();
+      assert(block);
+      assert(await chain.add(block));
     }
   });
 
-  after(async () => {
-    await wdb.close();
-    await miner.close();
-    await chain.close();
-  });
-
+  let openAuctionMTX;
   it('should open auction', async () => {
     openAuctionMTX = await winner.createOpen(NAME1, false);
     await winner.sign(openAuctionMTX);
@@ -117,7 +120,11 @@ describe('Wallet Auction', function() {
   });
 
   it('should mine enough blocks to enter BIDDING phase', async () => {
-    for (let i = 0; i < treeInterval; i++) {
+    for (
+      let i = 0;
+      i < network.names.treeInterval;
+      i++
+    ) {
       const block = await cpu.mineBlock();
       assert(block);
       assert(await chain.add(block));
@@ -148,13 +155,18 @@ describe('Wallet Auction', function() {
   });
 
   it('should mine enough blocks to expire auction', async () => {
-    for (let i = 0; i < biddingPeriod + revealPeriod; i++) {
+    for (
+      let i = 0;
+      i < network.names.biddingPeriod + network.names.revealPeriod;
+      i++
+    ) {
       const block = await cpu.mineBlock();
       assert(block);
       assert(await chain.add(block));
     }
   });
 
+  let openAuctionMTX2;
   it('should open auction (again)', async () => {
     openAuctionMTX2 = await winner.createOpen(NAME1, false);
     await winner.sign(openAuctionMTX2);
@@ -174,26 +186,18 @@ describe('Wallet Auction', function() {
     assert.strictEqual(err.message, `Already sent an open for: ${NAME1}.`);
   });
 
-  it('should confirm OPEN transaction', async () => {
+  it('should mine 1 block', async () => {
     const job = await cpu.createJob();
     job.addTX(openAuctionMTX2.toTX(), openAuctionMTX2.view);
     job.refresh();
 
     const block = await job.mineAsync();
+
     assert(await chain.add(block));
+  });
 
-    let ns = await chain.db.getNameStateByName(NAME1);
-    let state = ns.state(chain.height, network);
-    assert.strictEqual(state, states.OPENING);
-
-    for (let i = 0; i < treeInterval + 1; i++) {
-      const block = await cpu.mineBlock();
-      assert(block);
-      assert(await chain.add(block));
-    }
-
-    ns = await chain.db.getNameStateByName(NAME1);
-    state = ns.state(chain.height, network);
-    assert.strictEqual(state, states.BIDDING);
+  it('should cleanup', async () => {
+    await miner.close();
+    await chain.close();
   });
 });
