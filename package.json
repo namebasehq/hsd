@@ -47,7 +47,8 @@
     "hs-client": "~0.0.8",
     "n64": "~0.2.10",
     "namebase-hs-client": "=0.0.5",
-    "urkel": "~0.6.3"
+    "urkel": "~0.6.3",
+    "uuid": "^8.2.0"
   },
   "devDependencies": {
     "bmocha": "^2.1.3"
