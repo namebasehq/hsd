@@ -2901,13 +2901,13 @@ describe('Wallet', function() {
         return counter;
       };
 
-      const result1 = Wallet.doWithCache(testCache, testKey, action);
-      assert.equal(result1, counter);
+      const result1 = await Wallet.doWithCache(testCache, testKey, action);
+      assert.deepEqual(result1, { fromCache: false, result: 1 });
 
-      const result2 = Wallet.doWithCache(testCache, testKey, action);
-      assert.equal(result1, result2);
+      const result2 = await Wallet.doWithCache(testCache, testKey, action);
+      assert.deepEqual(result2, { fromCache: true, result: 1 });
 
-      Wallet.doWithCache(testCache, null, action);
+      await Wallet.doWithCache(testCache, null, action);
       assert.equal(2, counter);
     });
   });
