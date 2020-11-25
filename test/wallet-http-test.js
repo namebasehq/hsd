@@ -1202,7 +1202,6 @@ describe('Wallet HTTP', function() {
   });
 
   it('should create a batch open transaction (multiple outputs) for valid names', async () => {
-
     // add funds to account, these are necessary to run test individually
     // const height = 2;
     // await mineBlocks(height, cbAddress);
@@ -1214,18 +1213,18 @@ describe('Wallet HTTP', function() {
     }
 
     await mineBlocks(treeInterval, cbAddress);
-    
+
     const json = await wclient.createBatchOpen('primary', {
-      passphrase: "", 
-      names: validNames, 
-      sign: true, 
+      passphrase: '',
+      names: validNames,
+      sign: true,
       broadcast: true});
 
     const transaction = json['tx'];
     const errors = json['errors'];
 
     await sleep(500);
-  
+
     const mempool = await nclient.getMempool();
     assert.ok(mempool.includes(transaction.hash));
     assert.ok(errors.length === 0);
@@ -1233,7 +1232,6 @@ describe('Wallet HTTP', function() {
   });
 
   it('should create a batch open transaction (multiple outputs) for partially valid names', async () => {
-
     // add funds to account, these are necessary to run test individually
     // const height = 2;
     // await mineBlocks(height, cbAddress);
@@ -1243,12 +1241,12 @@ describe('Wallet HTTP', function() {
       broadcast: true,
       sign: true
     });
-    const firstNameHash = singleOpenJson["hash"];
+    const firstNameHash = singleOpenJson['hash'];
 
     const batchOpenJson = await wclient.createBatchOpen('primary', {
-      passphrase: "", 
-      names: [name, name2], 
-      sign: true, 
+      passphrase: '',
+      names: [name, name2],
+      sign: true,
       broadcast: true
     });
 
@@ -1257,7 +1255,6 @@ describe('Wallet HTTP', function() {
     const errors = batchOpenJson['errors'];
 
     await sleep(500);
-    
     // tx should be in mempool
     const mempool = await nclient.getMempool();
     assert.ok(mempool.includes(firstNameHash));
@@ -1268,40 +1265,36 @@ describe('Wallet HTTP', function() {
   });
 
   it('should reject a batch open transaction (multiple outputs) for names already open', async () => {
-
     // add funds to account, required for individual test run
     // const height = 2;
     // await mineBlocks(height, cbAddress);
 
     await wclient.createBatchOpen('primary', {
-      passphrase: "", 
-      names: [name, name2], 
-      sign: true, 
+      passphrase: '',
+      names: [name, name2],
+      sign: true,
       broadcast: true
     });
 
     await sleep(500);
 
     try {
-
       await wclient.createBatchOpen('primary', {
-        passphrase: "", 
-        names: invalidNames, 
-        sign: true, 
+        passphrase: '',
+        names: [name, name2],
+        sign: true,
         broadcast: true
       });
-
     } catch (err) {
       assert.ok(err);
     }
-    
+
     // valid tx should not be in mempool
     const mempool = await nclient.getMempool();
     assert.ok(mempool.length === 1);
   });
 
   it('should reject a batch open transaction (multiple outputs) for more than 200 names', async () => {
-
     // add funds to account, required for individual test run
     // const height = 2;
     // await mineBlocks(height, cbAddress);
@@ -1309,50 +1302,43 @@ describe('Wallet HTTP', function() {
     try {
       const tooManyNames = [...Array(201).keys()];
       await wclient.createBatchOpen('primary', {
-        passphrase: "", 
-        names: tooManyNames, 
-        sign: true, 
+        passphrase: '',
+        names: tooManyNames,
+        sign: true,
         broadcast: true
       });
-
     } catch (err) {
       assert.ok(err);
     }
-    
+
     // valid tx should not be in mempool
     const mempool = await nclient.getMempool();
     assert.ok(mempool.length === 0);
   });
 
   it('should reject a batch open transaction (multiple outputs) for invalid names', async () => {
-
     // add funds to account, required for individual test run
     // const height = 2;
     // await mineBlocks(height, cbAddress);
 
-    const invalidNames = [ '长城', '大鸟' ];
+    const invalidNames = ['长城', '大鸟'];
 
     try {
-
       await wclient.createBatchOpen('primary', {
-        passphrase: "", 
-        names: invalidNames, 
-        sign: true, 
+        passphrase: '',
+        names: invalidNames,
+        sign: true,
         broadcast: true
       });
-
     } catch (err) {
       assert.ok(err);
     }
 
     await sleep(500);
-    
     // tx should not be in mempool
     const mempool = await nclient.getMempool();
     assert.ok(mempool.length === 0);
-
   });
-
 });
 
 async function sleep(time) {
