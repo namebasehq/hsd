@@ -1265,10 +1265,6 @@ describe('Wallet HTTP', function() {
   });
 
   it('should reject a batch open transaction (multiple outputs) for names already open', async () => {
-    // add funds to account, required for individual test run
-    // const height = 2;
-    // await mineBlocks(height, cbAddress);
-
     await wclient.createBatchOpen('primary', {
       passphrase: '',
       names: [name, name2],
@@ -1295,10 +1291,6 @@ describe('Wallet HTTP', function() {
   });
 
   it('should reject a batch open transaction (multiple outputs) for more than 200 names', async () => {
-    // add funds to account, required for individual test run
-    // const height = 2;
-    // await mineBlocks(height, cbAddress);
-
     try {
       const tooManyNames = [...Array(201).keys()];
       await wclient.createBatchOpen('primary', {
@@ -1317,10 +1309,6 @@ describe('Wallet HTTP', function() {
   });
 
   it('should reject a batch open transaction (multiple outputs) for invalid names', async () => {
-    // add funds to account, required for individual test run
-    // const height = 2;
-    // await mineBlocks(height, cbAddress);
-
     const invalidNames = ['长城', '大鸟'];
 
     try {
