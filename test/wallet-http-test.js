@@ -1350,8 +1350,6 @@ describe('Wallet HTTP', function() {
   });
 
   it('should create a batch reveal transaction (multiple outputs) for partial valid names', async function() {
-    // TODO above test and this one is similar should the above one be removed ?
-    await mineBlocks(100, cbAddress);
     const VALID_NAMES_LEN = 2;
     const validNames = [];
     for (let i = 0; i < VALID_NAMES_LEN; i++) {
@@ -1409,8 +1407,6 @@ describe('Wallet HTTP', function() {
   });
 
   it('should create a batch reveal transaction with an output limit of 200 (+1 for NONE)', async function() {
-    // TODO above test and this one is similar should the above one be removed ?
-    // await mineBlocks(1, cbAddress);
     const BID_COUNT = 10;
     const VALID_NAMES_LEN = 21;
     const OUTPUT_LIMIT_EXCEEDING_NAMES_LEN = 1;
