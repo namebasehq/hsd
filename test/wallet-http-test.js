@@ -1460,7 +1460,6 @@ describe('Wallet HTTP', function() {
   });
 
   it('should create a batch reveal transaction with partial outputs for domains that exceeds the output limit of 200 (+1 for NONE)', async function() {
-    await mineBlocks(100, cbAddress);
     const MAX_BID_COUNT = 200;
     const BID_COUNT = 201;
     const VALID_NAMES_LEN = 1;
@@ -1488,7 +1487,7 @@ describe('Wallet HTTP', function() {
           bid: 999 + i,
           lockup: 2000
         });
-        if (i % 50 === 0) {
+        if (i % 100 === 0) {
            await mineBlocks(1, cbAddress);
         }
       }
@@ -1503,12 +1502,12 @@ describe('Wallet HTTP', function() {
       broadcast: true
     });
 
-    let {tx: transaction, errors} = json;
+    const {tx: transaction, errors} = json;
 
     assert.ok(errors.length === 1);
     assert.ok(errors[0].name != null);
 
-    await sleep(100);
+    await sleep(50);
 
     let mempool = await nclient.getMempool();
     assert.ok(mempool.includes(transaction.hash));
@@ -1528,11 +1527,11 @@ describe('Wallet HTTP', function() {
       broadcast: true
     });
 
-    let {tx: transaction2, errors: errors2} = json;
+    const {tx: transaction2, errors: errors2} = json;
 
     assert.ok(errors2.length === 0);
 
-    await sleep(100);
+    await sleep(50);
 
     mempool = await nclient.getMempool();
     assert.ok(mempool.includes(transaction2.hash));
