@@ -1413,8 +1413,6 @@ describe('Wallet HTTP', function() {
       validNames.push(await nclient.execute('grindname', [5]));
     }
 
-    await mineBlocks(100, cbAddress);
-
     await wclient.createBatchOpen('primary', {
       names: validNames,
       passphrase: '',
@@ -1450,7 +1448,7 @@ describe('Wallet HTTP', function() {
     assert.ok(errors.length === OUTPUT_LIMIT_EXCEEDING_NAMES_LEN);
     assert.ok(errors[0].name != null);
 
-    await sleep(50);
+    await sleep(100);
 
     const mempool = await nclient.getMempool();
     assert.ok(mempool.includes(transaction.hash));
@@ -1508,7 +1506,7 @@ describe('Wallet HTTP', function() {
     assert.ok(errors.length === 1);
     assert.ok(errors[0].name != null);
 
-    await sleep(50);
+    await sleep(100);
 
     let mempool = await nclient.getMempool();
     assert.ok(mempool.includes(transaction.hash));
@@ -1532,7 +1530,7 @@ describe('Wallet HTTP', function() {
 
     assert.ok(errors2.length === 0);
 
-    await sleep(50);
+    await sleep(100);
 
     mempool = await nclient.getMempool();
     assert.ok(mempool.includes(transaction2.hash));
