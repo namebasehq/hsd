@@ -1489,7 +1489,7 @@ describe('Wallet HTTP', function() {
           idempotencyKey: domainName + '_' + i
         });
 
-        if ( i % 50 == 0) {
+        if (i % 50 === 0) {
           await wclient.createBatchBid('primary', {
             passphrase: '',
             bids: bids
