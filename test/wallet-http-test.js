@@ -1739,22 +1739,22 @@ describe('Wallet HTTP', function() {
   it('should reject malformed/invalid finish requests', async function() {
     await assert.rejects(wclient.createBatchFinish('primary', {
       passphrase: '',
-      names: ['invalid_finish_data']
+      finishRequests: ['invalid_finish_data']
     }), /map must be a object./);
 
     await assert.rejects(wclient.createBatchFinish('primary', {
       passphrase: '',
-      names: [{name: 'domain_name'}]
+      finishRequests: [{name: 'domain_name'}]
     }), /name and data must be present in every element./);
 
     await assert.rejects(wclient.createBatchFinish('primary', {
       passphrase: '',
-      names: [{name: 'domain_name', data: 'invalid data'}]
+      finishRequests: [{name: 'domain_name', data: 'invalid data'}]
     }), /data must be a object./);
 
     await assert.rejects(wclient.createBatchFinish('primary', {
       passphrase: '',
-      names: [{name: 'domain_name', data: {}}]
+      finishRequests: [{name: 'domain_name', data: {}}]
     }), /data must be in form: {records: \[\]}/);
   });
 
@@ -1819,7 +1819,7 @@ describe('Wallet HTTP', function() {
 
     const wallet2Finish = await wclient.createBatchFinish('secondary', {
       passphrase: '',
-      names: [{name: name1, data}, {name: name2, data}]
+      finishRequests: [{name: name1, data}, {name: name2, data}]
     });
 
     assert.deepStrictEqual(wallet2Finish.errorMessages, []);
@@ -1833,7 +1833,7 @@ describe('Wallet HTTP', function() {
 
     const wallet1Finish = await wclient.createBatchFinish('primary', {
       passphrase: '',
-      names: [{name: name1, data}, {name: name2, data}]
+      finishRequests: [{name: name1, data}, {name: name2, data}]
     });
 
     const wallet1RedeemOutput = getOutputsOfType(wallet1Finish.processedFinishes, 'REDEEM')[0];
@@ -1906,7 +1906,7 @@ describe('Wallet HTTP', function() {
 
     const batchFinishResponsePart1 = await wclient.createBatchFinish('primary', {
       passphrase: '',
-      names: [{name: name1, data},{name: name2, data},{name: name3, data}]
+      finishRequests: [{name: name1, data},{name: name2, data},{name: name3, data}]
     });
 
     processedFinishes = batchFinishResponsePart1.processedFinishes;
@@ -1925,7 +1925,7 @@ describe('Wallet HTTP', function() {
 
     const batchFinishResponsePart2 = await wclient.createBatchFinish('primary', {
       passphrase: '',
-      names: [{name: name1, data},{name: name2, data},{name: name3, data}]
+      finishRequests: [{name: name1, data},{name: name2, data},{name: name3, data}]
     });
 
     processedFinishes = batchFinishResponsePart2.processedFinishes;
@@ -1975,7 +1975,7 @@ describe('Wallet HTTP', function() {
 
     const batchFinishResponse1 = await wclient.createBatchFinish('primary', {
       passphrase: '',
-      names: [{name, data}]
+      finishRequests: [{name, data}]
     });
 
     assert.equal(batchFinishResponse1.errorMessages.length, 0);
@@ -1994,7 +1994,7 @@ describe('Wallet HTTP', function() {
 
     const batchFinishResponse2 = await wclient.createBatchFinish('primary', {
       passphrase: '',
-      names: [{name, data}]
+      finishRequests: [{name, data}]
     });
 
     assert.equal(batchFinishResponse2.errorMessages.length, 0);
