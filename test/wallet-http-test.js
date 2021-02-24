@@ -1815,7 +1815,7 @@ describe('Wallet HTTP', function() {
       broadcast: true
     });
 
-    await mineBlocks(treeInterval + 1, cbAddress);
+    await mineBlocks(2*treeInterval + 1, cbAddress);
 
     const wallet2Finish = await wclient.createBatchFinish('secondary', {
       passphrase: '',
@@ -1900,7 +1900,7 @@ describe('Wallet HTTP', function() {
       broadcast: true
     });
 
-    await mineBlocks(treeInterval + 1, cbAddress);
+    await mineBlocks(2*treeInterval + 1, cbAddress);
 
     let processedFinishes, errorMessages;
 
@@ -1971,7 +1971,7 @@ describe('Wallet HTTP', function() {
       broadcast: true
     });
 
-    await mineBlocks(treeInterval + 1, cbAddress);
+    await mineBlocks(2*treeInterval + 1, cbAddress);
 
     const batchFinishResponse1 = await wclient.createBatchFinish('primary', {
       passphrase: '',

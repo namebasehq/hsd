@@ -108,7 +108,7 @@ describe('Interactive name swap', function() {
     assert.rejects(async () => {
       await alice.sendTransfer(name, bobReceive);
     }, {
-      message: 'Name must be registered.'
+      message: `Name must be registered: "${name}".`
     });
   });
 
