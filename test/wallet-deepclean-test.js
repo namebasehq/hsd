@@ -8,6 +8,7 @@ const Network = require('../lib/protocol/network');
 const FullNode = require('../lib/node/fullnode');
 const Address = require('../lib/primitives/address');
 const Resource = require('../lib/dns/resource');
+const {NodeClient} = require('namebase-hs-client');
 
 const network = Network.get('regtest');
 
@@ -15,6 +16,11 @@ const node = new FullNode({
   memory: true,
   network: 'regtest',
   plugins: [require('../lib/wallet/plugin')]
+});
+
+const nclient = new NodeClient({
+  port: network.rpcPort,
+  apiKey: 'foo'
 });
 
 const {wdb} = node.require('walletdb');
@@ -36,6 +42,9 @@ let bobAcct0Info, bobNames, bobBalance, bobHistory;
 
 const aliceBlinds = [];
 const bobBlinds = [];
+
+const generatedAliceNames = [];
+const generatedBobNames = [];
 
 async function mineBlocks(n, addr) {
   addr = addr ? addr : new Address().toString('regtest');
@@ -74,22 +83,42 @@ describe('Wallet Deep Clean', function() {
 
   it('should open 10 auctions and REGISTER names', async () => {
     for (let i = 0; i < 10; i++) {
+      const name = await nclient.execute('grindname', [6]);
+      i < 5 ? generatedAliceNames.push(name) : generatedBobNames.push(name);
+    }
+
+    for (let i = 0; i < 10; i++) {
+      const name = i < 5 ? generatedAliceNames[i] : generatedBobNames[i-5];
       const w = i < 5 ? alice : bob;
-      const name = i < 5 ? `alice${i}` : `bob${i}`;
-      const array = i < 5 ? aliceBlinds : bobBlinds;
-
       await w.sendOpen(name, false, {account: 0});
-      await mineBlocks(network.names.treeInterval + 2);
+    }
 
+    await mineBlocks(network.names.treeInterval + 2);
+
+    for (let i = 0; i < 10; i++) {
+      const name = i < 5 ? generatedAliceNames[i] : generatedBobNames[i-5];
+      const w = i < 5 ? alice : bob;
+      const array = i < 5 ? aliceBlinds : bobBlinds;
       // Send two bids so there is a winner/loser and name gets a value
       const bid1 = await w.sendBid(name, 100000 + i, 200000 + i, {account: 0});
       const bid2 = await w.sendBid(name, 100000 - i, 200000 - i, {account: 0});
       saveBlindValue(bid1, array);
       saveBlindValue(bid2, array);
-      await mineBlocks(network.names.biddingPeriod);
+    }
 
+    await mineBlocks(network.names.biddingPeriod);
+
+    for (let i = 0; i < 10; i++) {
+      const name = i < 5 ? generatedAliceNames[i] : generatedBobNames[i-5];
+      const w = i < 5 ? alice : bob;
       await w.sendReveal(name, {account: 0});
-      await mineBlocks(network.names.revealPeriod);
+    }
+
+    await mineBlocks(network.names.revealPeriod);
+
+    for (let i = 0; i < 10; i++) {
+      const name = i < 5 ? generatedAliceNames[i] : generatedBobNames[i-5];
+      const w = i < 5 ? alice : bob;
 
       const res = Resource.Resource.fromJSON({
         records: [
@@ -102,23 +131,27 @@ describe('Wallet Deep Clean', function() {
 
       await w.sendUpdate(name, res, {account: 0});
       await w.sendRedeem(name, {account: 0});
-      await mineBlocks(network.names.treeInterval);
     }
+
+    await mineBlocks(network.names.treeInterval);
   });
 
   it('should TRANSFER and FINALIZE some names', async () => {
+    const alice0 = generatedAliceNames[4];
+    const bob4 = generatedBobNames[0];
+
     const bobReceiveName = await bobAcct0.receiveAddress();
-    await alice.sendTransfer('alice0', bobReceiveName);
+    await alice.sendTransfer(alice0, bobReceiveName);
     await mineBlocks(network.names.transferLockup + 1);
 
-    await alice.sendFinalize('alice0');
+    await alice.sendFinalize(alice0);
     await mineBlocks(10);
 
     const aliceReceiveName = await aliceAcct0.receiveAddress();
-    await bob.sendTransfer('bob9', aliceReceiveName);
+    await bob.sendTransfer(bob4, aliceReceiveName);
     await mineBlocks(network.names.transferLockup + 1);
 
-    await bob.sendFinalize('bob9');
+    await bob.sendFinalize(bob4);
     await mineBlocks(10);
   });
 
