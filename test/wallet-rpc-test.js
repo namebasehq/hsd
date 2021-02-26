@@ -212,14 +212,15 @@ describe('Wallet RPC Methods', function() {
         const response = await wclient.execute('getaddressinfo', [address]);
         assert.equal(response.ismine, true);
       }
-      // TODO always passing ?
 
       // m/44'/5355'/0'/233
       // This address is outside of the lookahead range
-      // const failed = 'rs1q6zv2pc666tc0wqf5v94mduu2c3lg84xv32zmju';
+      // const failed = 'rs1qfed77evukrktjzwt6zd45aehw9c4hk8geq5r90';
+      // TODO this address is 1001th address
+      const failed = 'rs1qsrfg0khmn0t83e8ktpmepzrefmaqtv2gd4ncnv';
 
-      // const response = await wclient.execute('getaddressinfo', [failed]);
-      // assert.equal(response.ismine, false);
+      const response = await wclient.execute('getaddressinfo', [failed]);
+      assert.equal(response.ismine, false);
     });
 
     it('should detect change addresses', async () => {
