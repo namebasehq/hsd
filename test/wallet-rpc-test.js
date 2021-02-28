@@ -14,7 +14,7 @@ const network = Network.get('regtest');
 const mnemonics = require('./data/mnemonic-english.json');
 // Commonly used test mnemonic
 const phrase = mnemonics[0][1];
-// First 232 addresses derived from watch only wallet
+// First 1000 addresses derived from watch only wallet
 const addresses = require('./data/addresses.json');
 
 const ports = {
@@ -213,9 +213,8 @@ describe('Wallet RPC Methods', function() {
         assert.equal(response.ismine, true);
       }
 
-      // m/44'/5355'/0'/233
+      // m/44'/5355'/0'/1001
       // This address is outside of the lookahead range
-      // const failed = 'rs1qfed77evukrktjzwt6zd45aehw9c4hk8geq5r90';
       // TODO this address is 1001th address
       const failed = 'rs1qsrfg0khmn0t83e8ktpmepzrefmaqtv2gd4ncnv';
 
@@ -248,7 +247,7 @@ describe('Wallet RPC Methods', function() {
       const fn = async () => await wclient.execute('getaddressinfo', [failed]);
       await assert.rejects(fn, 'Invalid address.');
     });
-  });
+    });
 
   describe('signmessage', function() {
     const nonWalletAddress = 'rs1q7q3h4chglps004u3yn79z0cp9ed24rfrhvrxnx';
