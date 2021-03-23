@@ -25,7 +25,6 @@ const secp256k1 = require('bcrypto/lib/secp256k1');
 const network = Network.get('regtest');
 const assert = require('bsert');
 const common = require('./util/common');
-const { italics } = require('bns/lib/roothints');
 
 const node = new FullNode({
   network: 'regtest',
@@ -1458,7 +1457,7 @@ describe('Wallet HTTP', function() {
 
     await mineBlocks(biddingPeriod + 1, cbAddress);
 
-    const json = await wclient.createBatchRevealWithCache('primary', {
+    const json = await wclient.post('/wallet/primary/batch/revealwithcache', {
       passphrase: '',
       names: [...validNames, ...invalidNames]
     });
@@ -1508,7 +1507,7 @@ describe('Wallet HTTP', function() {
 
     await mineBlocks(biddingPeriod + 1, cbAddress);
 
-    const json = await wclient.createBatchRevealWithCache('primary', {
+    const json = await wclient.post('/wallet/primary/batch/revealwithcache', {
       passphrase: '',
       names: validNames,
       sign: true,
@@ -1578,7 +1577,7 @@ describe('Wallet HTTP', function() {
 
     await mineBlocks(biddingPeriod + 1, cbAddress);
 
-    const json = await wclient.createBatchRevealWithCache('primary', {
+    const json = await wclient.post('/wallet/primary/batch/revealwithcache', {
       passphrase: '',
       names: validNames
     });
@@ -1640,14 +1639,14 @@ describe('Wallet HTTP', function() {
 
     await mineBlocks(biddingPeriod + 1, cbAddress);
 
-    await wclient.createBatchRevealWithCache('primary', {
+    await wclient.post('/wallet/primary/batch/revealwithcache', {
       passphrase: '',
       names: validNames
     });
 
     await mineBlocks(1, cbAddress);
 
-    const json = await wclient.createBatchRevealWithCache('primary', {
+    const json = await wclient.post('/wallet/primary/batch/revealwithcache', {
       passphrase: '',
       names: validNames
     });
