@@ -950,11 +950,12 @@ describe('Namebase Wallet HTTP', function () {
   });
 
   it('should clear key from cache when requested', async () => {
-    await mineBlocks(2, cbAddress);
-
     const validNames = [];
     const domainName = await nclient.execute('grindname', [6]);
+
+    const cacheName = 'bid';
     const bidIdempotencyKey = 'idempotency_key';
+
     validNames.push(domainName);
 
     await mineBlocks(1, cbAddress);
@@ -994,7 +995,7 @@ describe('Namebase Wallet HTTP', function () {
     assert(secondBidResponse.processedBids.length === 1);
     assert(secondBidResponse.processedBids[0].fromCache);
 
-    await wclient.del(`/wallet/cache/${bidIdempotencyKey}`);
+    await wclient.del(`/cache/${cacheName}/${bidIdempotencyKey}`);
 
     const thirdBidResponse = await wclient.createBatchBid('primary', {
       passphrase: '',
