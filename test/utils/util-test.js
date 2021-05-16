@@ -56,5 +56,25 @@ describe('util', function() {
       assert.deepStrictEqual(validDomains.map(element => element.name), [domain1, domain2, domain3]);
       assert(rejectedDomains.length === 1);
     });
+
+    it('should create a zip from object and unzip it back from file', function() {
+      const fs = require('fs');
+      const os = require('os');
+      const path = require('path');
+
+      const object = {
+        // Voyager, greeting, https://voyager.jpl.nasa.gov/golden-record/whats-on-the-record/greetings/
+        greeting: 'Dear Turkish-speaking friends, may the honors of the morning be upon your heads.'
+      };
+
+      const writeBuffer = util.zipObject(object);
+
+      const filePath = path.join(os.tmpdir(), 'ziptest.zip');
+      fs.writeFileSync(filePath, writeBuffer);
+      const readBuffer = util.unzipFile(filePath);
+      const unzippedObject = JSON.parse(readBuffer.toString('utf8'));
+
+      assert.equal(object.greeting, unzippedObject.greeting);
+    });
   });
 });
