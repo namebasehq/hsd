@@ -3,6 +3,10 @@
 const util = require('../../lib/utils/util');
 const assert = require('bsert');
 
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
 describe('util', function() {
   describe('createBatch and createStrictBatch', function() {
     const outputMap = new Map();
@@ -35,11 +39,11 @@ describe('util', function() {
     it('should create a partial batch with domains that fit in pre-defined limit (ordered by the number of bids per domain descending)', function() {
       const limit = 99;
       const { validDomains, rejectedDomains } = util.createBatch(limit, outputMap);
-      assert.deepStrictEqual(validDomains, [{name: domain1, bidCount: limit}]);
-      const expectedRejectedDomains = [{name: domain1, bidCount: outputMap.get(domain1).length - limit},
-      {name: domain2, bidCount: outputMap.get(domain2).length},
-      {name: domain3, bidCount: outputMap.get(domain3).length},
-      {name: domain4, bidCount: outputMap.get(domain4).length}];
+      assert.deepStrictEqual(validDomains, [{ name: domain1, bidCount: limit }]);
+      const expectedRejectedDomains = [{ name: domain1, bidCount: outputMap.get(domain1).length - limit },
+      { name: domain2, bidCount: outputMap.get(domain2).length },
+      { name: domain3, bidCount: outputMap.get(domain3).length },
+      { name: domain4, bidCount: outputMap.get(domain4).length }];
       assert.deepStrictEqual(rejectedDomains, expectedRejectedDomains);
     });
 
@@ -58,10 +62,6 @@ describe('util', function() {
     });
 
     it('should create a zip from object and unzip it back from file', function() {
-      const fs = require('fs');
-      const os = require('os');
-      const path = require('path');
-
       const object = {
         // Voyager, greeting, https://voyager.jpl.nasa.gov/golden-record/whats-on-the-record/greetings/
         greeting: 'Dear Turkish-speaking friends, may the honors of the morning be upon your heads.'
