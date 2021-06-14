@@ -2930,27 +2930,6 @@ describe('Wallet', function() {
     });
   });
 
-  describe('Idempotency caching', () => {
-    it('should have a generic mechanism for hitting a cache', async () => {
-      const testCache = new LRU(10);
-      const testKey = 'idempotency-key';
-      let counter = 0;
-      const action = () => {
-        counter++;
-        return counter;
-      };
-
-      const result1 = await Wallet.doWithCache(testCache, testKey, action);
-      assert.deepEqual(result1, { fromCache: false, result: 1 });
-
-      const result2 = await Wallet.doWithCache(testCache, testKey, action);
-      assert.deepEqual(result2, { fromCache: true, result: 1 });
-
-      await Wallet.doWithCache(testCache, null, action);
-      assert.equal(2, counter);
-    });
-  });
-
   describe('Create auction-related TX in advance', function () {
     const network = Network.get('regtest');
     const workers = new WorkerPool({ enabled });
