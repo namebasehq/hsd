@@ -67,12 +67,10 @@ describe('Wallet HTTP', function () {
     await wclient.open();
 
     await wclient.createWallet('secondary');
-<<<<<<< HEAD
+
     cbAddress = (await wallet.createAddress('default')).address;
-=======
     await wclient.createWallet('staticAddress', { staticAddress: true });
     cbAddress  = (await wallet.createAddress('default')).address;
->>>>>>> 08b0a77dcd04c583df5bdcd9620e65f09b011b9b
     await wallet.createAccount(accountTwo);
   });
 
@@ -979,13 +977,7 @@ describe('Wallet HTTP', function () {
       name: name
     });
 
-<<<<<<< HEAD
-    const redeem = json.outputs.filter(
-      ({ covenant }) => covenant.type === types.REDEEM
-    );
-=======
     const redeem = json.outputs.filter(({ covenant }) => covenant.type === types.REDEEM);
->>>>>>> 08b0a77dcd04c583df5bdcd9620e65f09b011b9b
     assert.ok(redeem.length > 0);
   });
 
@@ -1024,13 +1016,7 @@ describe('Wallet HTTP', function () {
       });
 
       // register directly after reveal
-<<<<<<< HEAD
-      const registers = json.outputs.filter(
-        ({ covenant }) => covenant.type === types.REGISTER
-      );
-=======
       const registers = json.outputs.filter(({ covenant }) => covenant.type === types.REGISTER);
->>>>>>> 08b0a77dcd04c583df5bdcd9620e65f09b011b9b
       assert.equal(registers.length, 1);
     }
 
@@ -1051,13 +1037,7 @@ describe('Wallet HTTP', function () {
       });
 
       // update after register or update
-<<<<<<< HEAD
-      const updates = json.outputs.filter(
-        ({ covenant }) => covenant.type === types.UPDATE
-      );
-=======
       const updates = json.outputs.filter(({ covenant }) => covenant.type === types.UPDATE);
->>>>>>> 08b0a77dcd04c583df5bdcd9620e65f09b011b9b
       assert.equal(updates.length, 1);
     }
   });
@@ -1126,13 +1106,7 @@ describe('Wallet HTTP', function () {
       name
     });
 
-<<<<<<< HEAD
-    const updates = json.outputs.filter(
-      ({ covenant }) => covenant.type === types.RENEW
-    );
-=======
     const updates = json.outputs.filter(({ covenant }) => covenant.type === types.RENEW);
->>>>>>> 08b0a77dcd04c583df5bdcd9620e65f09b011b9b
     assert.equal(updates.length, 1);
   });
 
@@ -1178,13 +1152,7 @@ describe('Wallet HTTP', function () {
       address: receiveAddress
     });
 
-<<<<<<< HEAD
-    const xfer = json.outputs.filter(
-      ({ covenant }) => covenant.type === types.TRANSFER
-    );
-=======
     const xfer = json.outputs.filter(({ covenant }) => covenant.type === types.TRANSFER);
->>>>>>> 08b0a77dcd04c583df5bdcd9620e65f09b011b9b
     assert.equal(xfer.length, 1);
   });
 
@@ -1236,13 +1204,7 @@ describe('Wallet HTTP', function () {
       name
     });
 
-<<<<<<< HEAD
-    const final = json.outputs.filter(
-      ({ covenant }) => covenant.type === types.FINALIZE
-    );
-=======
     const final = json.outputs.filter(({ covenant }) => covenant.type === types.FINALIZE);
->>>>>>> 08b0a77dcd04c583df5bdcd9620e65f09b011b9b
     assert.equal(final.length, 1);
 
     await mineBlocks(1, cbAddress);
@@ -1299,13 +1261,7 @@ describe('Wallet HTTP', function () {
 
     const json = await wallet.createCancel({ name });
 
-<<<<<<< HEAD
-    const cancel = json.outputs.filter(
-      ({ covenant }) => covenant.type === types.UPDATE
-    );
-=======
     const cancel = json.outputs.filter(({ covenant }) => covenant.type === types.UPDATE);
->>>>>>> 08b0a77dcd04c583df5bdcd9620e65f09b011b9b
     assert.equal(cancel.length, 1);
 
     await mineBlocks(1, cbAddress);
@@ -1356,14 +1312,8 @@ describe('Wallet HTTP', function () {
     await mineBlocks(treeInterval + 1, cbAddress);
 
     const json = await wallet.createRevoke({ name });
-
-<<<<<<< HEAD
-    const final = json.outputs.filter(
-      ({ covenant }) => covenant.type === types.REVOKE
-    );
-=======
     const final = json.outputs.filter(({ covenant }) => covenant.type === types.REVOKE);
->>>>>>> 08b0a77dcd04c583df5bdcd9620e65f09b011b9b
+
     assert.equal(final.length, 1);
 
     await mineBlocks(1, cbAddress);
@@ -1371,826 +1321,6 @@ describe('Wallet HTTP', function () {
     const ns = await nclient.execute('getnameinfo', [name]);
     assert.equal(ns.info.name, name);
     assert.equal(ns.info.state, 'REVOKED');
-  });
-<<<<<<< HEAD
-=======
-
-  it('should create a batch open transaction (multiple outputs) for valid names', async () => {
-    const NAMES_LEN = 200;
-    const validNames = [];
-    for (let i = 0; i < NAMES_LEN; i++) {
-      validNames.push(await nclient.execute('grindname', [5]));
-    }
-
-    await mineBlocks(treeInterval, cbAddress);
-
-    const json = await wclient.createBatchOpen('primary', {
-      passphrase: '',
-      names: validNames,
-      sign: true,
-      broadcast: true });
-
-    const transaction = json['tx'];
-    const errors = json['errors'];
-
-    await sleep(500);
-
-    const mempool = await nclient.getMempool();
-    assert.ok(mempool.includes(transaction.hash));
-    assert.ok(errors.length === 0);
-    assert.ok(transaction['outputs'] && transaction['outputs'].length === NAMES_LEN + 1); // NAMES_LEN OPEN + 1 NONE
-  });
-
-  it('should create a batch open transaction (multiple outputs) for partially valid names', async () => {
-    const singleOpenJson = await wallet.createOpen({
-      name: name,
-      broadcast: true,
-      sign: true
-    });
-    const firstNameHash = singleOpenJson['hash'];
-
-    const batchOpenJson = await wclient.createBatchOpen('primary', {
-      passphrase: '',
-      names: [name, name2],
-      sign: true,
-      broadcast: true
-    });
-
-    const batchOpenTransaction = batchOpenJson['tx'];
-    const batchOpenTransactionHash = batchOpenTransaction['hash'];
-    const errors = batchOpenJson['errors'];
-
-    await sleep(500);
-    // tx should be in mempool
-    const mempool = await nclient.getMempool();
-    assert.ok(mempool.includes(firstNameHash));
-    assert.ok(mempool.includes(batchOpenTransactionHash));
-
-    assert.ok(errors.length === 1);
-    assert.ok(batchOpenTransaction['outputs'] && batchOpenTransaction['outputs'].length === 2); // 1 OPEN, 1 NONE
-  });
-
-  it('should reject a batch open transaction (multiple outputs) for names already open', async () => {
-    await wclient.createBatchOpen('primary', {
-      passphrase: '',
-      names: [name, name2],
-      sign: true,
-      broadcast: true
-    });
-
-    await sleep(500);
-
-    try {
-      await wclient.createBatchOpen('primary', {
-        passphrase: '',
-        names: [name, name2],
-        sign: true,
-        broadcast: true
-      });
-    } catch (err) {
-      assert.ok(err);
-    }
-
-    // valid tx should not be in mempool
-    const mempool = await nclient.getMempool();
-    assert.ok(mempool.length === 1);
-  });
-
-  it('should reject a batch open transaction (multiple outputs) for more than 200 names', async () => {
-    try {
-      const tooManyNames = [...Array(201).keys()];
-      await wclient.createBatchOpen('primary', {
-        passphrase: '',
-        names: tooManyNames,
-        sign: true,
-        broadcast: true
-      });
-    } catch (err) {
-      assert.ok(err);
-    }
-
-    // valid tx should not be in mempool
-    const mempool = await nclient.getMempool();
-    assert.ok(mempool.length === 0);
-  });
-
-  it('should reject a batch open transaction (multiple outputs) for invalid names', async () => {
-    const invalidNames = ['长城', '大鸟'];
-
-    try {
-      await wclient.createBatchOpen('primary', {
-        passphrase: '',
-        names: invalidNames,
-        sign: true,
-        broadcast: true
-      });
-    } catch (err) {
-      assert.ok(err);
-    }
-
-    await sleep(500);
-    // tx should not be in mempool
-    const mempool = await nclient.getMempool();
-    assert.ok(mempool.length === 0);
-  });
-
-  it('should create a batch reveal transaction (multiple outputs) for partial valid names', async function() {
-    const VALID_NAMES_LEN = 2;
-    const validNames = [];
-    for (let i = 0; i < VALID_NAMES_LEN; i++) {
-      validNames.push(await nclient.execute('grindname', [5]));
-    }
-    const INVALID_NAMES_LEN = 10;
-    const invalidNames = [...Array(INVALID_NAMES_LEN).keys()];
-
-    await mineBlocks(1, cbAddress);
-
-    await wclient.createBatchOpen('primary', {
-      names: validNames,
-      passphrase: '',
-      broadcast: true,
-      sign: true
-    });
-
-    await mineBlocks(treeInterval + 1, cbAddress);
-
-    // TODO Promise.All is failing ?
-    const numberOfBids = VALID_NAMES_LEN * 2;
-    for (const domainName of validNames) {
-      await wallet.createBid({
-        name: domainName,
-        bid: 1000,
-        lockup: 2000
-      });
-      await wallet.createBid({
-        name: domainName,
-        bid: 1500,
-        lockup: 2000
-      });
-    }
-
-    await mineBlocks(biddingPeriod + 1, cbAddress);
-
-    const json = await wclient.post('/wallet/primary/batch/revealwithcache', {
-      passphrase: '',
-      names: [...validNames, ...invalidNames]
-    });
-
-    const { processedReveals, errors } = json;
-    assert.ok(errors.length === INVALID_NAMES_LEN);
-
-    await sleep(500);
-
-    const mempool = await nclient.getMempool();
-
-    for (const processedReveal of processedReveals) {
-      assert.ok(mempool.includes(processedReveal.tx_hash));
-    }
-    assert.ok(processedReveals.length === numberOfBids);
-  });
-
-  it('should create a batch reveal transaction with an output limit of 200 (+1 for NONE)', async function() {
-    const BID_COUNT = 2;
-    const VALID_NAMES_LEN = 105;
-    const OUTPUT_LIMIT_EXCEEDING_NAMES_LEN = 5;
-    const validNames = [];
-    for (let i = 0; i < VALID_NAMES_LEN; i++) {
-      validNames.push(await nclient.execute('grindname', [5]));
-    }
-
-    await wclient.createBatchOpen('primary', {
-      names: validNames,
-      passphrase: '',
-      broadcast: true,
-      sign: true
-    });
-
-    await mineBlocks(treeInterval + 1, cbAddress);
-
-    // TODO Promise.All is failing ?
-    for (let i = 0; i < BID_COUNT; i++) {
-      for (const domainName of validNames) {
-        await wallet.createBid({
-          name: domainName,
-          bid: 1000 + i,
-          lockup: 2000
-        });
-      }
-      await mineBlocks(1, cbAddress);
-    }
-
-    await mineBlocks(biddingPeriod + 1, cbAddress);
-
-    const json = await wclient.post('/wallet/primary/batch/revealwithcache', {
-      passphrase: '',
-      names: validNames,
-      sign: true,
-      broadcast: true
-    });
-
-    const { processedReveals, errors } = json;
-
-    assert.ok(errors.length === OUTPUT_LIMIT_EXCEEDING_NAMES_LEN);
-    assert.ok(errors[0].name != null);
-
-    await sleep(100);
-
-    const mempool = await nclient.getMempool();
-    for (const processedReveal of processedReveals) {
-      assert.ok(mempool.includes(processedReveal.tx_hash));
-    }
-
-    const numberOfBids = (VALID_NAMES_LEN - OUTPUT_LIMIT_EXCEEDING_NAMES_LEN) * BID_COUNT;
-    assert.ok(
-      processedReveals.length === numberOfBids
-    ); // BIDS LEN + 1 NONE
-  });
-
-  it('should not permit partially revealed domains', async function() {
-    const VALID_NAMES_LEN = 5;
-    const validNames = [];
-    const BID_COUNT = 50;
-    const MAX_REVEAL_COUNT = 200;
-    for (let i = 0; i < VALID_NAMES_LEN; i++) {
-      validNames.push(await nclient.execute('grindname', [5]));
-    }
-
-    await mineBlocks(1, cbAddress);
-    await mineBlocks(1, cbAddress);
-
-    await wclient.createBatchOpen('primary', {
-      names: validNames,
-      passphrase: '',
-      broadcast: true,
-      sign: true
-    });
-
-    await mineBlocks(treeInterval + 1, cbAddress);
-
-    // using batch bids to speed up the test
-    let bids = [];
-    for (const domainName of validNames) {
-      for (let i = 1; i <= BID_COUNT; i++) {
-        bids.push({
-          name: domainName,
-          bid: 999 + i,
-          lockup: 2000,
-          idempotencyKey: domainName + '_' + i
-        });
-
-        if (i % 50 === 0) {
-          await wclient.createBatchBid('primary', {
-            passphrase: '',
-            bids: bids
-          });
-          await mineBlocks(1, cbAddress);
-          bids = [];
-        }
-      }
-    }
-
-    await mineBlocks(biddingPeriod + 1, cbAddress);
-
-    const json = await wclient.post('/wallet/primary/batch/revealwithcache', {
-      passphrase: '',
-      names: validNames
-    });
-
-    const { processedReveals, errors } = json;
-
-    assert.ok(errors.length === 1);
-    assert.ok(processedReveals.length === MAX_REVEAL_COUNT);
-
-    await sleep(100);
-
-    const mempool = await nclient.getMempool();
-    for (const processedReveal of processedReveals) {
-      assert.ok(mempool.includes(processedReveal.tx_hash));
-    }
-  });
-
-  it('should respond from cache to repeated identical requests', async function() {
-    const VALID_NAMES_LEN = 2;
-    const validNames = [];
-    const BID_COUNT = 50;
-    for (let i = 0; i < VALID_NAMES_LEN; i++) {
-      validNames.push(await nclient.execute('grindname', [5]));
-    }
-
-    await mineBlocks(1, cbAddress);
-    await mineBlocks(1, cbAddress);
-
-    await wclient.createBatchOpen('primary', {
-      names: validNames,
-      passphrase: '',
-      broadcast: true,
-      sign: true
-    });
-
-    await mineBlocks(treeInterval + 1, cbAddress);
-
-    // using batch bids to speed up the test
-    let bids = [];
-    for (const domainName of validNames) {
-      for (let i = 1; i <= BID_COUNT; i++) {
-        bids.push({
-          name: domainName,
-          bid: 999 + i,
-          lockup: 2000,
-          idempotencyKey: domainName + '_' + i
-        });
-
-        if (i % 50 === 0) {
-          await wclient.createBatchBid('primary', {
-            passphrase: '',
-            bids: bids
-          });
-          await mineBlocks(1, cbAddress);
-          bids = [];
-        }
-      }
-    }
-
-    await mineBlocks(biddingPeriod + 1, cbAddress);
-
-    await wclient.post('/wallet/primary/batch/revealwithcache', {
-      passphrase: '',
-      names: validNames
-    });
-
-    await mineBlocks(1, cbAddress);
-
-    const json = await wclient.post('/wallet/primary/batch/revealwithcache', {
-      passphrase: '',
-      names: validNames
-    });
-
-    const { processedReveals, errors } = json;
-
-    assert.ok(errors.length === 0);
-    assert.ok(processedReveals.length === BID_COUNT * VALID_NAMES_LEN);
-
-    for (const processedReveal of processedReveals) {
-      assert.ok(processedReveal.from_cache);
-    }
-  });
-
-  it('should reject a batch reveal transaction (multiple outputs) for invalid names', async function() {
-    const invalidNames = ['长城', '大鸟'];
-    try {
-      await wclient.post('/wallet/primary/batch/revealwithcache', {
-        passphrase: '',
-        names: invalidNames
-      });
-    } catch (err) {
-      assert.ok(err);
-    }
-    await sleep(500);
-    // tx should not be in mempool
-    const mempool = await nclient.getMempool();
-    assert.ok(mempool.length === 0);
-  });
-
-  it('should return from cache when same idempotency_key is used in a bid request', async function() {
-    await mineBlocks(5, cbAddress);
-
-    const BID_COUNT = 2;
-    const VALID_NAMES_LEN = 100;
-    const validNames = [];
-    for (let i = 0; i < VALID_NAMES_LEN; i++) {
-      validNames.push(await nclient.execute('grindname', [6]));
-    }
-
-    await mineBlocks(1, cbAddress);
-
-    await wclient.createBatchOpen('primary', {
-      names: validNames,
-      passphrase: '',
-      broadcast: true,
-      sign: true
-    });
-
-    await mineBlocks(treeInterval + 1, cbAddress);
-
-    const bids = [];
-    let counter = 0;
-    for (const domainName of validNames) {
-      for (let i = 0; i < BID_COUNT; i++) {
-        bids.push({
-          name: domainName,
-          bid: 999 + i,
-          lockup: 2000,
-          idempotencyKey: String(counter++)
-        });
-      }
-    }
-
-    const UNIQUE_BID_COUNT = 2;
-    const TOTAL_BID_COUNT = VALID_NAMES_LEN * BID_COUNT;
-
-    const uniqueBids = bids.splice(TOTAL_BID_COUNT - UNIQUE_BID_COUNT, UNIQUE_BID_COUNT);
-
-    await wclient.createBatchBid('primary', {
-      passphrase: '',
-      bids: bids
-    });
-
-    for (let i = 0; i < UNIQUE_BID_COUNT; i++) {
-      bids.push(uniqueBids[i]);
-    }
-
-    // Duplicate request with UNIQUE_BID_COUNT unique bids at the end
-    const { processedBids, errorMessages } = await wclient.createBatchBid('primary', {
-      passphrase: '',
-      bids: bids
-    });
-
-    assert.ok(processedBids);
-    assert.equal(errorMessages.length, 0);
-    assert.equal(bids.length, TOTAL_BID_COUNT);
-
-    const allFromCache = processedBids.every(element => element.fromCache === true);
-    assert.equal(allFromCache, false);
-
-    await sleep(100);
-
-    const mempool = await nclient.getMempool();
-    //
-    const uniqueTxs = new Set();
-    processedBids.forEach(bid => uniqueTxs.add(bid.tx_hash));
-    // should have 2 unique transactions within
-    assert.equal(uniqueTxs.size, 2);
-    assert.equal(mempool.length, uniqueTxs.size);
-    for (const txHash of uniqueTxs.values()) {
-      assert.ok(mempool.includes(txHash));
-    }
-  });
-
-  it('should create a batch bid transaction (multiple outputs) for valid names', async function() {
-    const BID_COUNT = 2;
-    const VALID_NAMES_LEN = 100;
-    const validNames = [];
-    for (let i = 0; i < VALID_NAMES_LEN; i++) {
-      validNames.push(await nclient.execute('grindname', [6]));
-    }
-
-    await mineBlocks(1, cbAddress);
-
-    await wclient.createBatchOpen('primary', {
-      names: validNames,
-      passphrase: '',
-      broadcast: true,
-      sign: true
-    });
-
-    await mineBlocks(treeInterval + 1, cbAddress);
-
-    const bids = [];
-    let counter = 0;
-    for (const domainName of validNames) {
-      for (let i = 0; i < BID_COUNT; i++) {
-        bids.push({
-          name: domainName,
-          bid: 999 + i,
-          lockup: 2000,
-          idempotencyKey: 'key_' + counter++
-        });
-      }
-    }
-
-    const { processedBids, errorMessages } = await wclient.createBatchBid('primary', {
-      passphrase: '',
-      bids: bids
-    });
-
-    assert.ok(processedBids);
-    assert.equal(errorMessages.length, 0);
-    const expectedOutputCount = BID_COUNT * VALID_NAMES_LEN;
-    assert.equal(bids.length, expectedOutputCount);
-
-    await sleep(100);
-
-    const mempool = await nclient.getMempool();
-    assert.ok(mempool.includes(processedBids[0].tx_hash));
-  });
-
-  it('should reject a batch bid transaction that exceeds the total number of bid limit of 200 or not permitted 0 bid', async function() {
-    const BID_COUNT = 4;
-    const VALID_NAMES_LEN = 100;
-    const validNames = [];
-    for (let i = 0; i < VALID_NAMES_LEN; i++) {
-      validNames.push(await nclient.execute('grindname', [6]));
-    }
-
-    await mineBlocks(1, cbAddress);
-
-    await wclient.createBatchOpen('primary', {
-      names: validNames,
-      passphrase: '',
-      broadcast: true,
-      sign: true
-    });
-
-    await mineBlocks(treeInterval + 1, cbAddress);
-
-    const bids = [];
-    let counter = 0;
-    for (const domainName of validNames) {
-      for (let i = 0; i < BID_COUNT; i++) {
-        bids.push({
-          name: domainName,
-          bid: 999 + i,
-          lockup: 2000,
-          idempotencyKey: String(counter++)
-        });
-      }
-    }
-
-    assert.rejects(async () => {
-      await wclient.createBatchBid('primary', {
-        passphrase: '',
-        bids: bids
-      });
-    });
-
-    assert.rejects(async () => {
-      await wclient.createBatchBid('primary', {
-        passphrase: '',
-        bids: []
-      });
-    });
-  });
-
-  it('should reject malformed/invalid finish requests', async function() {
-    await assert.rejects(wclient.createBatchFinish('primary', {
-      passphrase: '',
-      finishRequests: ['invalid_finish_data']
-    }), /map must be a object./);
-
-    await assert.rejects(wclient.createBatchFinish('primary', {
-      passphrase: '',
-      finishRequests: [{ name: 'domain_name' }]
-    }), /name and data must be present in every element./);
-
-    await assert.rejects(wclient.createBatchFinish('primary', {
-      passphrase: '',
-      finishRequests: [{ name: 'domain_name', data: 'invalid data' }]
-    }), /data must be a object./);
-
-    await assert.rejects(wclient.createBatchFinish('primary', {
-      passphrase: '',
-      finishRequests: [{ name: 'domain_name', data: {} }]
-    }), /Invalid records/);
-  });
-
-  it('should redeem lost bid and register won bids', async function() {
-    const name1 = await nclient.execute('grindname', [6]);
-    const name2 = await nclient.execute('grindname', [6]);
-    const data = { records: [] };
-
-    await wclient.createBatchOpen('primary', {
-      names: [name1, name2],
-      passphrase: '',
-      broadcast: true,
-      sign: true
-    });
-
-    await mineBlocks(treeInterval + 1, cbAddress);
-
-    // wallet1(primary) wins name1, wallet2(secondary) wins name2
-    const wallet1Name1WinningBidValue = 1000001;
-    const wallet1Name1WinningBid = createBid(name1, wallet1Name1WinningBidValue, 'wallet-1-bid-1');
-
-    const wallet1Name2LosingBidValue = 1000000;
-    const wallet1Name2LosingBid = createBid(name2, wallet1Name2LosingBidValue, 'wallet-1-bid-2');
-
-    const wallet2Name1LosingBidValue = 1000000;
-    const wallet2Name1LosingBid = createBid(name1, wallet2Name1LosingBidValue, 'wallet-2-bid-1');
-
-    const wallet2Name2WinningBidValue = 1000001;
-    const wallet2Name2WinningBid = createBid(name2, wallet2Name2WinningBidValue, 'wallet-2-bid-2');
-
-    await wclient.createBatchBid('primary', {
-      passphrase: '',
-      bids: [wallet1Name1WinningBid, wallet1Name2LosingBid]
-    });
-
-    await mineBlocks(1, cbAddress);
-
-    await wclient.createBatchBid('secondary', {
-      passphrase: '',
-      bids: [wallet2Name1LosingBid, wallet2Name2WinningBid]
-    });
-
-    await mineBlocks(treeInterval + 1, cbAddress);
-
-    await wclient.createBatchReveal('primary', {
-      passphrase: '',
-      names: [name1, name2],
-      sign: true,
-      broadcast: true
-    });
-
-    await mineBlocks(1, cbAddress);
-
-    await wclient.createBatchReveal('secondary', {
-      passphrase: '',
-      names: [name1, name2],
-      sign: true,
-      broadcast: true
-    });
-
-    await mineBlocks(2 * treeInterval + 1, cbAddress);
-
-    const wallet2Finish = await wclient.createBatchFinish('secondary', {
-      passphrase: '',
-      finishRequests: [{ name: name1, data }, { name: name2, data }]
-    });
-
-    assert.deepStrictEqual(wallet2Finish.errorMessages, []);
-    assert.equal(wallet2Finish.processedFinishes.length, 2); // one redeem one finish
-
-    const wallet2RedeemOutput = getOutputsOfType(wallet2Finish.processedFinishes, 'REDEEM')[0];
-    const wallet2RegisterOutput = getOutputsOfType(wallet2Finish.processedFinishes, 'REGISTER')[0];
-
-    assert.equal(wallet2RedeemOutput.value, wallet2Name1LosingBidValue);
-    assert.equal(wallet2RegisterOutput.value, wallet1Name2LosingBidValue); // wickrey auction
-
-    const wallet1Finish = await wclient.createBatchFinish('primary', {
-      passphrase: '',
-      finishRequests: [{ name: name1, data }, { name: name2, data }]
-    });
-
-    const wallet1RedeemOutput = getOutputsOfType(wallet1Finish.processedFinishes, 'REDEEM')[0];
-    const wallet1RegisterOutput = getOutputsOfType(wallet1Finish.processedFinishes, 'REGISTER')[0];
-
-    assert.equal(wallet1RedeemOutput.value, wallet1Name2LosingBidValue);
-    assert.equal(wallet1RegisterOutput.value, wallet2Name1LosingBidValue); // wickrey auction
-
-    assert.deepStrictEqual(wallet1Finish.errorMessages, []);
-    assert.equal(wallet1Finish.processedFinishes.length, 2);
-
-    await sleep(100);
-
-    const mempool = await nclient.getMempool();
-    assert.ok(mempool.includes(wallet2Finish.processedFinishes[0].tx_hash));
-    assert.ok(mempool.includes(wallet1Finish.processedFinishes[0].tx_hash));
-  });
-
-  it('should partially process names when total finish count exceeds 200', async function() {
-    const BATCH_FINISH_LIMIT = 200;
-    const NAME_BID_COUNT = 100;
-    const { name: name1, bids: name1Bids } = await createNameWithBids(NAME_BID_COUNT);
-    const { name: name2, bids: name2Bids } = await createNameWithBids(NAME_BID_COUNT);
-    const { name: name3, bids: name3Bids } = await createNameWithBids(NAME_BID_COUNT);
-    const data = { records: [] };
-
-    await wclient.createBatchOpen('primary', {
-      names: [name1, name2, name3],
-      passphrase: '',
-      broadcast: true,
-      sign: true
-    });
-
-    await mineBlocks(treeInterval + 1, cbAddress);
-
-    await wclient.createBatchBid('primary', {
-      passphrase: '',
-      bids: [...name1Bids, ...name2Bids]
-    });
-
-    await mineBlocks(1, cbAddress);
-
-    await wclient.createBatchBid('primary', {
-      passphrase: '',
-      bids: name3Bids
-    });
-
-    await mineBlocks(treeInterval + 1, cbAddress);
-
-    // we need to reveal 2 time since total amount exceeds 200 limit
-    await wclient.createBatchReveal('primary', {
-      passphrase: '',
-      names: [name1, name2],
-      sign: true,
-      broadcast: true
-    });
-
-    await mineBlocks(1, cbAddress);
-
-    await wclient.createBatchReveal('primary', {
-      passphrase: '',
-      names: [name3],
-      sign: true,
-      broadcast: true
-    });
-
-    await mineBlocks(2 * treeInterval + 1, cbAddress);
-
-    let processedFinishes, errorMessages;
-
-    const batchFinishResponsePart1 = await wclient.createBatchFinish('primary', {
-      passphrase: '',
-      finishRequests: [{ name: name1, data },{ name: name2, data },{ name: name3, data }]
-    });
-
-    processedFinishes = batchFinishResponsePart1.processedFinishes;
-    errorMessages = batchFinishResponsePart1.errorMessages;
-
-    assert.equal(processedFinishes.length, BATCH_FINISH_LIMIT);
-    // 1 name is expected to fail
-    assert.equal(errorMessages.length, 1);
-
-    await sleep(100);
-
-    let mempool = await nclient.getMempool();
-    assert(mempool.length, 1);
-
-    await mineBlocks(1, cbAddress);
-
-    const batchFinishResponsePart2 = await wclient.createBatchFinish('primary', {
-      passphrase: '',
-      finishRequests: [{ name: name1, data },{ name: name2, data },{ name: name3, data }]
-    });
-
-    processedFinishes = batchFinishResponsePart2.processedFinishes;
-    errorMessages = batchFinishResponsePart2.errorMessages;
-
-    await sleep(100);
-
-    mempool = await nclient.getMempool();
-    assert(mempool.length, 1);
-
-    assert.equal(processedFinishes.length, 3 * NAME_BID_COUNT);
-    assert.equal(errorMessages.length, 0);
-  });
-
-  it('should respond from cache when same names are used for batchFinish', async function() {
-    const NAME_BID_COUNT = 100;
-    const data = { records: [] };
-
-    const { name, bids } = await createNameWithBids(NAME_BID_COUNT);
-
-    await wclient.createBatchOpen('primary', {
-      names: [name],
-      passphrase: '',
-      broadcast: true,
-      sign: true
-    });
-
-    await mineBlocks(treeInterval + 1, cbAddress);
-
-    await wclient.createBatchBid('primary', {
-      passphrase: '',
-      bids: bids
-    });
-
-    await mineBlocks(treeInterval + 1, cbAddress);
-
-    await wclient.createBatchReveal('primary', {
-      passphrase: '',
-      names: [name],
-      sign: true,
-      broadcast: true
-    });
-
-    await mineBlocks(2 * treeInterval + 1, cbAddress);
-
-    const batchFinishResponse1 = await wclient.createBatchFinish('primary', {
-      passphrase: '',
-      finishRequests: [{ name, data }]
-    });
-
-    assert.equal(batchFinishResponse1.errorMessages.length, 0);
-    assert.equal(batchFinishResponse1.processedFinishes.length, NAME_BID_COUNT);
-
-    for (const processedFinish of batchFinishResponse1.processedFinishes) {
-      assert.equal(processedFinish.from_cache, false);
-    }
-
-    await sleep(100);
-
-    let mempool = await nclient.getMempool();
-    assert(mempool.length, 1);
-
-    await mineBlocks(1, cbAddress);
-
-    const batchFinishResponse2 = await wclient.createBatchFinish('primary', {
-      passphrase: '',
-      finishRequests: [{ name, data }]
-    });
-
-    assert.equal(batchFinishResponse2.errorMessages.length, 0);
-    assert.equal(batchFinishResponse2.processedFinishes.length, NAME_BID_COUNT);
-
-    await sleep(100);
-
-    mempool = await nclient.getMempool();
-    assert.equal(mempool.length, 0);
-
-    for (const processedFinish of batchFinishResponse2.processedFinishes) {
-      assert.equal(processedFinish.from_cache, true);
-    }
   });
 
   it('staticAddress wallet default account should have staticAddress: true property', async function() {
@@ -2205,7 +1335,6 @@ describe('Wallet HTTP', function () {
     const receiveAddr = (await staticAddressWallet.createAddress('default')).toString(network);
     assert.equal(changeAddr, receiveAddr);
   });
->>>>>>> 08b0a77dcd04c583df5bdcd9620e65f09b011b9b
 });
 
 async function sleep(time) {
@@ -2239,8 +1368,6 @@ function openOutput(name, address) {
 
   return output;
 }
-<<<<<<< HEAD
-=======
 
 // create bid
 function createBid(name, bid, idempotencyKey) {
@@ -2275,4 +1402,3 @@ function getOutputsOfType(processedFinishes, type) {
       return element.output;
     });
 }
->>>>>>> 08b0a77dcd04c583df5bdcd9620e65f09b011b9b
