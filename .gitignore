@@ -6,4 +6,5 @@ node_modules/
 npm-debug.log
 .vscode/
 .idea/
+.eslintrc.json
 jsconfig.json

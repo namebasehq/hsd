@@ -58,6 +58,7 @@
   },
   "root": true,
   "rules": {
+    "keyword-spacing": "error",
     "array-bracket-spacing": [
       "error",
       "never"
