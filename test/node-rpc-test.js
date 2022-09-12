@@ -1,54 +1,62 @@
-/**
- * test/node-rpc-test.js - Node RPC tests for hsd
- * Copyright (c) 2020, The Handshake Developers (MIT Licence)
- * https://github.com/handshake-org/hsd
- */
-
-/* eslint-env mocha */
-/* eslint prefer-arrow-callback: "off" */
-
 'use strict';
 
 const assert = require('bsert');
 const FullNode = require('../lib/node/fullnode');
+const SPVNode = require('../lib/node/spvnode');
+const Network = require('../lib/protocol/network');
+const consensus = require('../lib/protocol/consensus');
+const MemWallet = require('./util/memwallet');
+const TX = require('../lib/primitives/tx');
 const {NodeClient} = require('hs-client');
+
+const TIMEOUT = 15000;
+const API_KEY = 'foo';
+const NETWORK = 'regtest';
 
 const ports = {
   p2p: 49331,
   node: 49332,
   wallet: 49333
 };
-const node = new FullNode({
-  network: 'regtest',
-  apiKey: 'foo',
+
+const nodeOptions = {
+  network: NETWORK,
+  apiKey: API_KEY,
   walletAuth: true,
   memory: true,
   workers: true,
   workersSize: 2,
   port: ports.p2p,
   httpPort: ports.node
-});
+};
 
-const nclient = new NodeClient({
+const clientOptions = {
   port: ports.node,
-  apiKey: 'foo',
-  timeout: 15000
-});
+  apiKey: API_KEY,
+  timeout: TIMEOUT
+};
+
+const errs = {
+  MISC_ERROR: -1
+};
 
 describe('RPC', function() {
   this.timeout(15000);
 
-  before(async () => {
-    await node.open();
-    await nclient.open();
-  });
-
-  after(async () => {
-    await nclient.close();
-    await node.close();
-  });
-
   describe('getblock', function () {
+    const node = new FullNode(nodeOptions);
+    const nclient = new NodeClient(clientOptions);
+
+    before(async () => {
+      await node.open();
+      await nclient.open();
+    });
+
+    after(async () => {
+      await nclient.close();
+      await node.close();
+    });
+
     it('should rpc getblock', async () => {
       const {chain} = await nclient.getInfo();
       const info = await nclient.execute('getblock', [chain.tip]);
@@ -223,6 +231,449 @@ describe('RPC', function() {
           assert.equal(e.message, reason);
         }
       }
+    });
+  });
+
+  describe('pruneblockchain', function() {
+    const network = Network.get(NETWORK);
+    const PRUNE_AFTER_HEIGHT = network.block.pruneAfterHeight;
+    const KEEP_BLOCKS = network.KEEP_BLOCKS;
+
+    const TEST_KEEP_BLOCKS = 10;
+    const TEST_PRUNED_BLOCKS = 10;
+    const TEST_PRUNE_AFTER_HEIGHT = 10;
+
+    let nclient, node;
+
+    before(() => {
+      network.block.pruneAfterHeight = TEST_PRUNE_AFTER_HEIGHT;
+      network.block.keepBlocks = TEST_KEEP_BLOCKS;
+    });
+
+    after(() => {
+      network.block.pruneAfterHeight = PRUNE_AFTER_HEIGHT;
+      network.block.keepBlocks = KEEP_BLOCKS;
+    });
+
+    afterEach(async () => {
+      if (nclient && nclient.opened)
+        await nclient.close();
+
+      if (node && node.opened)
+        await node.close();
+    });
+
+    it('should fail with wrong arguments', async () => {
+      node = new FullNode(nodeOptions);
+      nclient = new NodeClient(clientOptions);
+
+      await node.open();
+
+      await assert.rejects(async () => {
+        await nclient.execute('pruneblockchain', [1]);
+      }, {
+        code: errs.MISC_ERROR,
+        type: 'RPCError',
+        message: 'pruneblockchain'
+      });
+
+      await node.close();
+    });
+
+    it('should not work for spvnode', async () => {
+      node = new SPVNode(nodeOptions);
+      nclient = new NodeClient(clientOptions);
+
+      await node.open();
+
+      await assert.rejects(async () => {
+        await nclient.execute('pruneblockchain');
+      }, {
+        type: 'RPCError',
+        message: 'Cannot prune chain in SPV mode.',
+        code: errs.MISC_ERROR
+      });
+
+      await node.close();
+    });
+
+    it('should fail for pruned node', async () => {
+      node = new FullNode({
+        ...nodeOptions,
+        prune: true
+      });
+
+      await node.open();
+
+      await assert.rejects(async () => {
+        await nclient.execute('pruneblockchain');
+      }, {
+        type: 'RPCError',
+        code: errs.MISC_ERROR,
+        message: 'Chain is already pruned.'
+      });
+
+      await node.close();
+    });
+
+    it('should fail for short chain', async () => {
+      node = new FullNode(nodeOptions);
+
+      await node.open();
+
+      await assert.rejects(async () => {
+        await nclient.execute('pruneblockchain');
+      }, {
+        type: 'RPCError',
+        code: errs.MISC_ERROR,
+        message: 'Chain is too short for pruning.'
+      });
+
+      await node.close();
+    });
+
+    it('should prune chain', async () => {
+      // default - prune: false
+      node = new FullNode(nodeOptions);
+      nclient = new NodeClient(clientOptions);
+
+      await node.open();
+
+      const addr = 'rs1q4rvs9pp9496qawp2zyqpz3s90fjfk362q92vq8';
+      node.miner.addAddress(addr);
+
+      let genBlocks = TEST_PRUNE_AFTER_HEIGHT;
+      genBlocks += TEST_PRUNED_BLOCKS;
+      genBlocks += TEST_KEEP_BLOCKS;
+
+      // generate 30 blocks.
+      // similar to chain-rpc-test
+      const blocks = await nclient.execute('generate', [genBlocks]);
+
+      // make sure we have all the blocks.
+      for (let i = 0; i < genBlocks; i++) {
+        const block = await nclient.execute('getblock', [blocks[i]]);
+        assert(block);
+      }
+
+      // now prune..
+      await nclient.execute('pruneblockchain');
+
+      let i = 0;
+
+      // behind height check
+      let to = TEST_PRUNE_AFTER_HEIGHT;
+      for (; i < to; i++) {
+        const block = await nclient.execute('getblock', [blocks[i]]);
+        assert(block, 'could not get block before height check.');
+      }
+
+      // pruned blocks.
+      to += TEST_PRUNED_BLOCKS;
+      for (; i < to; i++) {
+        await assert.rejects(async () => {
+          await nclient.execute('getblock', [blocks[i]]);
+        }, {
+          type: 'RPCError',
+          code: errs.MISC_ERROR,
+          message: 'Block not available (pruned data)'
+        });
+      }
+
+      // keep blocks
+      to += TEST_KEEP_BLOCKS;
+      for (; i < to; i++) {
+        const block = await nclient.execute('getblock', [blocks[i]]);
+        assert(block, `block ${i} was pruned.`);
+      }
+
+      await node.close();
+    });
+  });
+
+  describe('mining', function() {
+    const node = new FullNode(nodeOptions);
+    const nclient = new NodeClient(clientOptions);
+
+    const wallet = new MemWallet({
+      network: NETWORK
+    });
+
+    let mtx1, mtx2;
+
+    before(async () => {
+      await node.open();
+      await nclient.open();
+    });
+
+    after(async () => {
+      await nclient.close();
+      await node.close();
+    });
+
+    it('should submit a block', async () => {
+      const block = await node.miner.mineBlock();
+      const hex = block.toHex();
+
+      const result = await nclient.execute('submitblock', [hex]);
+
+      assert.strictEqual(result, null);
+      assert.bufferEqual(node.chain.tip.hash, block.hash());
+    });
+
+    it('should add transactions to mempool', async () => {
+      // Fund MemWallet
+      node.miner.addresses.length = 0;
+      node.miner.addAddress(wallet.getReceive());
+      for (let i = 0; i < 10; i++) {
+        const block = await node.miner.mineBlock();
+        const entry = await node.chain.add(block);
+        wallet.addBlock(entry, block.txs);
+      }
+
+      // High fee
+      mtx1 = await wallet.send({
+        rate: 100000,
+        outputs: [{
+          value: 100000,
+          address: wallet.getReceive()
+        }]
+      });
+      await node.mempool.addTX(mtx1.toTX());
+
+      // Low fee
+      mtx2 = await wallet.send({
+        rate: 10000,
+        outputs: [{
+          value: 100000,
+          address: wallet.getReceive()
+        }]
+      });
+      await node.mempool.addTX(mtx2.toTX());
+
+      assert.strictEqual(node.mempool.map.size, 2);
+    });
+
+    it('should get a block template', async () => {
+      node.rpc.refreshBlock();
+
+      const result = await nclient.execute(
+        'getblocktemplate',
+         [{rules: []}]
+      );
+
+      let fees = 0;
+      let weight = 0;
+
+      for (const item of result.transactions) {
+        fees += item.fee;
+        weight += item.weight;
+      }
+
+      assert.strictEqual(result.transactions.length, 2);
+      assert.strictEqual(fees, mtx1.getFee() + mtx2.getFee());
+      assert.strictEqual(weight, mtx1.getWeight() + mtx2.getWeight());
+      assert.strictEqual(result.transactions[0].txid, mtx1.txid());
+      assert.strictEqual(result.transactions[1].txid, mtx2.txid());
+      assert.strictEqual(result.coinbasevalue, 2000 * consensus.COIN + fees);
+    });
+
+    it('should prioritise transaction', async () => {
+      const result = await nclient.execute(
+        'prioritisetransaction',
+        [mtx2.txid(), 0, 10000000]
+      );
+
+      assert.strictEqual(result, true);
+    });
+
+    it('should get a block template', async () => {
+      let fees = 0;
+      let weight = 0;
+
+      node.rpc.refreshBlock();
+
+      const result = await nclient.execute(
+        'getblocktemplate',
+         [{rules: []}]
+      );
+
+      for (const item of result.transactions) {
+        fees += item.fee;
+        weight += item.weight;
+      }
+
+      assert.strictEqual(result.transactions.length, 2);
+      assert.strictEqual(fees, mtx1.getFee() + mtx2.getFee());
+      assert.strictEqual(weight, mtx1.getWeight() + mtx2.getWeight());
+      // TX order is swapped from last test due to priortization
+      assert.strictEqual(result.transactions[1].txid, mtx1.txid());
+      assert.strictEqual(result.transactions[0].txid, mtx2.txid());
+      assert.strictEqual(result.coinbasevalue, 2000 * consensus.COIN + fees);
+    });
+
+    it('should mine a block', async () => {
+      const block = await node.miner.mineBlock();
+      assert(block);
+      await node.chain.add(block);
+    });
+  });
+
+  describe('transactions', function() {
+    const node = new FullNode({...nodeOptions, indexTx: true});
+    const nclient = new NodeClient(clientOptions);
+
+    const wallet = new MemWallet({
+      network: NETWORK
+    });
+
+    let tx1;
+
+    before(async () => {
+      await node.open();
+      await nclient.open();
+    });
+
+    after(async () => {
+      await nclient.close();
+      await node.close();
+    });
+
+    it('should confirm a transaction in a block', async () => {
+      // Fund MemWallet
+      node.miner.addresses.length = 0;
+      node.miner.addAddress(wallet.getReceive());
+      for (let i = 0; i < 10; i++) {
+        const block = await node.miner.mineBlock();
+        const entry = await node.chain.add(block);
+        wallet.addBlock(entry, block.txs);
+      }
+
+      const mtx1 = await wallet.send({
+        rate: 100000,
+        outputs: [{
+          value: 100000,
+          address: wallet.getReceive()
+        }]
+      });
+      tx1 = mtx1.toTX();
+      await node.mempool.addTX(tx1);
+
+      assert.strictEqual(node.mempool.map.size, 1);
+
+      const block = await node.miner.mineBlock();
+      assert(block);
+      assert.strictEqual(block.txs.length, 2);
+      await node.chain.add(block);
+    });
+
+    it('should get raw transaction', async () => {
+      const result = await nclient.execute(
+        'getrawtransaction',
+        [tx1.txid()]
+      );
+
+      const tx = TX.fromHex(result);
+      assert.strictEqual(tx.txid(), tx1.txid());
+    });
+
+    it('should get raw transaction (verbose=true)', async () => {
+      const result = await nclient.execute(
+        'getrawtransaction',
+        [tx1.txid(), true]
+      );
+
+      const tx = TX.fromHex(result.hex);
+
+      assert.equal(result.vin.length, tx.inputs.length);
+      assert.equal(result.vout.length, tx.outputs.length);
+
+      for (const [i, vout] of result.vout.entries()) {
+        const output = tx.output(i);
+        assert.equal(vout.address.version, output.address.version);
+        assert.equal(vout.address.string, output.address.toString(node.network));
+        assert.equal(vout.address.hash, output.address.hash.toString('hex'));
+      }
+    });
+  });
+
+  describe('networking', function() {
+    const node = new FullNode({...nodeOptions, bip37: true});
+    const nclient = new NodeClient(clientOptions);
+
+    before(async () => {
+      await node.open();
+      await nclient.open();
+    });
+
+    after(async () => {
+      await nclient.close();
+      await node.close();
+    });
+
+    it('should get service names for rpc getnetworkinfo', async () => {
+      const result = await nclient.execute('getnetworkinfo', []);
+
+      assert.deepEqual(result.localservicenames, ['NETWORK', 'BLOOM']);
+    });
+  });
+
+  describe('utility', function() {
+    const node = new FullNode({...nodeOptions});
+    const nclient = new NodeClient(clientOptions);
+
+    before(async () => {
+      await node.open();
+      await nclient.open();
+    });
+
+    after(async () => {
+      await nclient.close();
+      await node.close();
+    });
+
+    it('should decode resource', async () => {
+      // .p resource at mainnet height 118700
+      const result = await nclient.execute(
+        'decoderesource',
+        [
+          '0002036e733101700022858d9e01c00200c625080220d96' +
+          '65e9952988fc27b1d4098491b37d83a3b6fb2cdf5fc9787' +
+          'd4dda67f1408ed001383080220ae8ea2f2800727f9ad3b6' +
+          'd7c802dac2a0790bdc8ea717bf5f6dc21f83fb8cc4e'
+        ]
+      );
+
+      assert.deepEqual(
+        result,
+        {
+          records: [
+            {
+              type: 'GLUE4',
+              ns: 'ns1.p.',
+              address: '34.133.141.158'
+            },
+            {
+              type: 'NS',
+              ns: 'ns1.p.'
+            },
+            {
+              type: 'DS',
+              keyTag: 50725,
+              algorithm: 8,
+              digestType: 2,
+              digest: 'd9665e9952988fc27b1d4098491b37d83a3b6fb2cdf5fc9787d4dda67f1408ed'
+            },
+            {
+              type: 'DS',
+              keyTag: 4995,
+              algorithm: 8,
+              digestType: 2,
+              digest: 'ae8ea2f2800727f9ad3b6d7c802dac2a0790bdc8ea717bf5f6dc21f83fb8cc4e'
+            }
+          ]
+        }
+      );
     });
   });
 });

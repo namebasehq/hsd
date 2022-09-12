@@ -1,7 +1,3 @@
-/* eslint-env mocha */
-/* eslint prefer-arrow-callback: "off" */
-/* eslint no-return-assign: "off" */
-
 // DO NOT TOUCH THESE TESTS
 // They trigger the tree interval reorg bug.
 
@@ -9,6 +5,7 @@
 
 const assert = require('bsert');
 const Chain = require('../lib/blockchain/chain');
+const BlockStore = require('../lib/blockstore/level');
 const WorkerPool = require('../lib/workers/workerpool');
 const Miner = require('../lib/mining/miner');
 const MemWallet = require('./util/memwallet');
@@ -17,23 +14,26 @@ const rules = require('../lib/covenants/rules');
 const ownership = require('../lib/covenants/ownership');
 
 const network = Network.get('regtest');
-const {
-  biddingPeriod,
-  revealPeriod,
-  transferLockup,
-  treeInterval
-} = network.names;
-const NAME1 = rules.grindName(10, 20, network);
-const NAME2 = rules.grindName(10, 20, network);
+const {treeInterval} = network.names;
+const GNAME_SIZE = 10;
+const NAME1 = rules.grindName(GNAME_SIZE, 20, network);
+const NAME2 = rules.grindName(GNAME_SIZE, 20, network);
 
 const workers = new WorkerPool({
   // Must be disabled for `ownership.ignore`.
-  enabled: false
+  enabled: false,
+  size: 2
 });
 
 function createNode() {
+  const blocks = new BlockStore({
+    memory: true,
+    network
+  });
+
   const chain = new Chain({
     memory: true,
+    blocks,
     network,
     workers
   });
@@ -45,6 +45,7 @@ function createNode() {
 
   return {
     chain,
+    blocks,
     miner,
     cpu: miner.cpu,
     wallet: () => {
@@ -79,7 +80,7 @@ describe('Auction Reorg', function() {
     const orig = createNode();
     const comp = createNode();
 
-    const {chain, miner, cpu} = node;
+    const {chain, miner, cpu, blocks} = node;
 
     const winner = node.wallet();
     const runnerup = node.wallet();
@@ -87,6 +88,7 @@ describe('Auction Reorg', function() {
     let snapshot = null;
 
     it('should open chain and miner', async () => {
+      await blocks.open();
       await chain.open();
       await miner.open();
     });
@@ -139,8 +141,8 @@ describe('Auction Reorg', function() {
       assert(await chain.add(block));
     });
 
-    it(`should mine ${biddingPeriod} blocks`, async () => {
-      for (let i = 0; i < biddingPeriod; i++) {
+    it('should mine 10 blocks', async () => {
+      for (let i = 0; i < 10; i++) {
         const block = await cpu.mineBlock();
         assert(block);
         assert(await chain.add(block));
@@ -161,8 +163,8 @@ describe('Auction Reorg', function() {
       assert(await chain.add(block));
     });
 
-    it(`should mine ${revealPeriod} blocks`, async () => {
-      for (let i = 0; i < revealPeriod; i++) {
+    it('should mine 20 blocks', async () => {
+      for (let i = 0; i < 20; i++) {
         const block = await cpu.mineBlock();
         assert(block);
         assert(await chain.add(block));
@@ -186,8 +188,8 @@ describe('Auction Reorg', function() {
       assert(await chain.add(block));
     });
 
-    it(`should mine ${treeInterval} blocks`, async () => {
-      for (let i = 0; i < treeInterval; i++) {
+    it('should mine 10 blocks', async () => {
+      for (let i = 0; i < 10; i++) {
         const block = await cpu.mineBlock();
         assert(block);
         assert(await chain.add(block));
@@ -269,8 +271,10 @@ describe('Auction Reorg', function() {
     });
 
     it('should open other nodes', async () => {
+      await orig.blocks.open();
       await orig.chain.open();
       await orig.miner.open();
+      await comp.blocks.open();
       await comp.chain.open();
       await comp.miner.open();
     });
@@ -345,8 +349,10 @@ describe('Auction Reorg', function() {
     });
 
     it('should close other nodes', async () => {
+      await orig.blocks.close();
       await orig.miner.close();
       await orig.chain.close();
+      await comp.blocks.close();
       await comp.miner.close();
       await comp.chain.close();
     });
@@ -398,17 +404,19 @@ describe('Auction Reorg', function() {
     it('should cleanup', async () => {
       await miner.close();
       await chain.close();
+      await blocks.close();
     });
   });
 
   describe('Claim Reorg', function() {
     const node = createNode();
-    const {chain, miner, cpu} = node;
+    const {chain, miner, cpu, blocks} = node;
 
     const wallet = node.wallet();
     const recip = node.wallet();
 
     it('should open chain and miner', async () => {
+      await blocks.open();
       await chain.open();
       await miner.open();
     });
@@ -612,8 +620,8 @@ describe('Auction Reorg', function() {
       assert.strictEqual(err.reason, 'bad-finalize-maturity');
     });
 
-    it(`should mine ${transferLockup} blocks`, async () => {
-      for (let i = 0; i < transferLockup; i++) {
+    it('should mine 20 blocks', async () => {
+      for (let i = 0; i < 20; i++) {
         const block = await cpu.mineBlock();
         assert(block);
         assert(await chain.add(block));
@@ -635,6 +643,7 @@ describe('Auction Reorg', function() {
     it('should cleanup', async () => {
       await miner.close();
       await chain.close();
+      await blocks.close();
     });
   });
 });

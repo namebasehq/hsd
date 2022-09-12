@@ -1,19 +1,11 @@
-/* eslint-env mocha */
-/* eslint prefer-arrow-callback: "off" */
-
 'use strict';
 
 const assert = require('bsert');
 const FullNode = require('../lib/node/fullnode');
 const Address = require('../lib/primitives/address');
-const {tmpdir} = require('os');
-const {randomBytes} = require('bcrypto/lib/random');
-const Path = require('path');
-const layouts = require('../lib/wallet/layout');
-const layout = layouts.wdb;
+const {rimraf, testdir} = require('./util/common');
 
-const uniq = randomBytes(4).toString('hex');
-const path = Path.join(tmpdir(), `hsd-test-${uniq}`);
+const path = testdir('walletchange');
 
 const node = new FullNode({
   prefix: path,
@@ -27,10 +19,6 @@ const {wdb} = node.require('walletdb');
 let wallet, recAddr;
 const changeAddrs = [];
 const manualChangeAddrs = [];
-const missingChangeAddrs = [];
-
-// staticAddressWallet state
-let fixedAddressWallet, changeAddrStr, recvAddrStr;
 
 async function mineBlocks(n, addr) {
   addr = addr ? addr : new Address().toString('regtest');
@@ -41,22 +29,17 @@ async function mineBlocks(n, addr) {
 }
 
 describe('Derive and save change addresses', function() {
-  this.timeout(10000);
-
   before(async () => {
     await node.ensure();
     await node.open();
 
     wallet = await wdb.create();
     recAddr = await wallet.receiveAddress();
-
-    fixedAddressWallet = await wdb.create({ staticAddress: true });
-    recvAddrStr = (await fixedAddressWallet.receiveAddress()).toString(wdb.network);
-    changeAddrStr = (await fixedAddressWallet.changeAddress()).toString(wdb.network);
   });
 
   after(async () => {
     await node.close();
+    await rimraf(path);
   });
 
   it('should fund account', async () => {
@@ -112,94 +95,6 @@ describe('Derive and save change addresses', function() {
   it('should have all change addresses saved', async () => {
     for (const addr of manualChangeAddrs) {
       assert(await wallet.hasAddress(addr));
-    }
-  });
-
-  it('should recreate the missing change address bug', async () => {
-    for (let i = 0; i < 20; i++) {
-      const acct = await wallet.getAccount(0);
-      const key = acct.deriveChange(acct.changeDepth);
-      acct.changeDepth += 1;
-      const b = wdb.db.batch();
-      await wdb.saveAccount(b, acct);
-      await b.write();
-      missingChangeAddrs.push(key.getAddress());
-    }
-  });
-
-  it('should have no missing change addresses beyond lookahead', async () => {
-    const acct = await wallet.getAccount(0);
-    const lookahead = acct.lookahead;
-
-    for (let i = 0; i < missingChangeAddrs.length; i++) {
-      const addr = await wallet.hasAddress(missingChangeAddrs[i]);
-
-      if (i < lookahead)
-        assert(addr);
-      else
-        assert(!addr);
-    }
-  });
-
-  it('should migrate wallet and recover change addresses', async () => {
-    // Fake an old db state
-    await wdb.db.del(layout.M.encode(0));
-
-    // Run migration script without flag -- throws
-    await assert.rejects(
-      wdb.migrateChange(),
-      {
-        message: 'Wallet is corrupted.\n' +
-          'Back up wallet and then restart with\n' +
-          '`hsd --wallet-migrate=0` or `hs-wallet --migrate=0`\n' +
-          '(Full node required)'
-      }
-    );
-
-    // Add flag
-    wdb.options.migrate = 0;
-
-    // Run migration script again
-    await wdb.migrateChange();
-
-    // Fixed
-    for (const addr of missingChangeAddrs) {
-      assert(await wallet.hasAddress(addr));
-    }
-
-    // Sanity checks
-    for (const addr of changeAddrs) {
-      assert(await wallet.hasAddress(addr));
-    }
-    for (const addr of manualChangeAddrs) {
-      assert(await wallet.hasAddress(addr));
-    }
-  });
-
-  it('default account should have "staticAddress" property set to true', async function () {
-    const defaultAccount = await fixedAddressWallet.getAccount('default');
-    assert.equal(defaultAccount.staticAddress, true);
-  });
-
-  it('should fund account', async function () {
-    await mineBlocks(2, recvAddrStr);
-    await wdb.rescan(0);
-  });
-
-  it('should generate some number of transactions all having the same changeAddr', async function () {
-
-    for (let i = 0; i < 20; i++) {
-      const tx = await fixedAddressWallet.send({ outputs: [{
-          address: Address.fromHash(Buffer.alloc(32, 1)),
-          value: 10000
-        }] });
-
-      for (const output of tx.outputs) {
-        const outputAddrString = output.address.toString(wdb.network);
-        if (output.value !== 10000) {
-          assert.strictEqual(changeAddrStr, outputAddrString, 'change addresses are different');
-        }
-      }
     }
   });
 });

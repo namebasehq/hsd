@@ -1,6 +1,3 @@
-/* eslint-env mocha */
-/* eslint prefer-arrow-callback: "off" */
-
 'use strict';
 
 const assert = require('bsert');
@@ -9,7 +6,7 @@ const FullNode = require('../lib/node/fullnode');
 const Address = require('../lib/primitives/address');
 const rules = require('../lib/covenants/rules');
 const Resource = require('../lib/dns/resource');
-const { WalletClient } = require('hs-client');
+const {WalletClient} = require('hs-client');
 
 const network = Network.get('regtest');
 
@@ -28,9 +25,9 @@ const wclient = new WalletClient({
   port: network.walletPort
 });
 
-const { wdb } = node.require('walletdb');
+const {wdb} = node.require('walletdb');
 
-const name = rules.grindName(5, 1, network);
+const name = rules.grindName(10, 1, network);
 let wallet, alice, bob, aliceReceive, bobReceive;
 
 async function mineBlocks(n, addr) {
@@ -51,7 +48,7 @@ describe('Multiple accounts participating in same auction', function() {
     // We'll use an account number for alice and a string for bob
     // to ensure that both types work as options.
     alice = await wallet.getAccount(0);
-    bob = await wallet.createAccount({ name: 'bob' });
+    bob = await wallet.createAccount({name: 'bob'});
 
     aliceReceive = await alice.receiveAddress();
     bobReceive = await bob.receiveAddress();
@@ -77,15 +74,15 @@ describe('Multiple accounts participating in same auction', function() {
   });
 
   it('should open an auction and proceed to REVEAL phase', async () => {
-    await wallet.sendOpen(name, false, { account: 0 });
+    await wallet.sendOpen(name, false, {account: 0});
     await mineBlocks(network.names.treeInterval + 2);
     let ns = await node.chain.db.getNameStateByName(name);
     assert(ns.isBidding(node.chain.height, network));
 
     await wdb.rescan(0);
 
-    await wallet.sendBid(name, 100000, 200000, { account: 0 });
-    await wallet.sendBid(name, 50000, 200000, { account: 'bob' });
+    await wallet.sendBid(name, 100000, 200000, {account: 0});
+    await wallet.sendBid(name, 50000, 200000, {account: 'bob'});
     await mineBlocks(network.names.biddingPeriod);
     ns = await node.chain.db.getNameStateByName(name);
     assert(ns.isReveal(node.chain.height, network));
@@ -103,10 +100,10 @@ describe('Multiple accounts participating in same auction', function() {
 
   describe('REVEAL', function() {
     it('should send one REVEAL per account', async () => {
-      const tx1 = await wallet.sendReveal(name, { account: 0 });
+      const tx1 = await wallet.sendReveal(name, {account: 0});
       assert(tx1);
 
-      const tx2 = await wallet.sendReveal(name, { account: 'bob' });
+      const tx2 = await wallet.sendReveal(name, {account: 'bob'});
       assert(tx2);
 
       // Reset for next test
@@ -138,14 +135,14 @@ describe('Multiple accounts participating in same auction', function() {
           type: 'TXT',
           txt: ['ALICE']
         }
-      ] });
+      ]});
     const bobResource = Resource.Resource.fromJSON({
       records: [
         {
           type: 'TXT',
           txt: ['BOB']
         }
-      ] });
+      ]});
 
     it('should advance auction to REGISTER phase', async () => {
       await mineBlocks(network.names.revealPeriod);
@@ -155,7 +152,7 @@ describe('Multiple accounts participating in same auction', function() {
       await wdb.rescan(0);
 
       // Alice is the winner
-      const { hash, index } = ns.owner;
+      const {hash, index} = ns.owner;
       assert(await wallet.txdb.hasCoinByAccount(0, hash, index));
 
       // ...not Bob (sanity check)
@@ -164,7 +161,7 @@ describe('Multiple accounts participating in same auction', function() {
 
     it('should reject REGISTER given wrong account', async () => {
       await assert.rejects(async () => {
-        await wallet.sendUpdate(name, bobResource, { account: 'bob' });
+        await wallet.sendUpdate(name, bobResource, {account: 'bob'});
       }, {
         name: 'Error',
         message: `Account does not own: "${name}".`
@@ -172,7 +169,7 @@ describe('Multiple accounts participating in same auction', function() {
     });
 
     it('should send REGISTER given correct account', async () => {
-      const tx = await wallet.sendUpdate(name, aliceResource, { account: 0 });
+      const tx = await wallet.sendUpdate(name, aliceResource, {account: 0});
       assert(tx);
 
       await wallet.abandon(tx.hash());
@@ -193,15 +190,15 @@ describe('Multiple accounts participating in same auction', function() {
   describe('REDEEM', function() {
     it('should reject REDEEM given wrong account', async () => {
       await assert.rejects(async () => {
-        await wallet.sendRedeem(name, { account: 0 });
+        await wallet.sendRedeem(name, {account: 0});
       }, {
         name: 'Error',
-        message: `No reveals to redeem: "${name}".`
+        message: 'No reveals to redeem.'
       });
     });
 
     it('should send REDEEM from correct account', async () => {
-      const tx = await wallet.sendRedeem(name, { account: 'bob' });
+      const tx = await wallet.sendRedeem(name, {account: 'bob'});
       assert(tx);
 
       await wallet.abandon(tx.hash());
@@ -227,7 +224,7 @@ describe('Multiple accounts participating in same auction', function() {
 
     it('should reject RENEW from wrong account', async () => {
       await assert.rejects(async () => {
-        await wallet.sendRenewal(name, { account: 'bob' });
+        await wallet.sendRenewal(name, {account: 'bob'});
       }, {
         name: 'Error',
         message: `Account does not own: "${name}".`
@@ -235,7 +232,7 @@ describe('Multiple accounts participating in same auction', function() {
     });
 
     it('should send RENEW from correct account', async () => {
-      const tx = await wallet.sendRenewal(name, { account: 0 });
+      const tx = await wallet.sendRenewal(name, {account: 0});
       assert(tx);
 
       await wallet.abandon(tx.hash());
@@ -267,7 +264,7 @@ describe('Multiple accounts participating in same auction', function() {
 
     it('should reject TRANSFER from wrong account', async () => {
       await assert.rejects(async () => {
-        await wallet.sendTransfer(name, toAddr, { account: 'bob' });
+        await wallet.sendTransfer(name, toAddr, {account: 'bob'});
       }, {
         name: 'Error',
         message: `Account does not own: "${name}".`
@@ -275,7 +272,7 @@ describe('Multiple accounts participating in same auction', function() {
     });
 
     it('should send TRANSFER from correct account', async () => {
-      const tx = await wallet.sendTransfer(name, toAddr, { account: 0 });
+      const tx = await wallet.sendTransfer(name, toAddr, {account: 0});
       assert(tx);
 
       await wallet.abandon(tx.hash());
@@ -304,7 +301,7 @@ describe('Multiple accounts participating in same auction', function() {
 
     it('should reject FINALIZE from wrong account', async () => {
       await assert.rejects(async () => {
-        await wallet.sendFinalize(name, { account: 'bob' });
+        await wallet.sendFinalize(name, {account: 'bob'});
       }, {
         name: 'Error',
         message: `Account does not own: "${name}".`
@@ -312,7 +309,7 @@ describe('Multiple accounts participating in same auction', function() {
     });
 
     it('should send FINALIZE from correct account', async () => {
-      const tx = await wallet.sendFinalize(name, { account: 0 });
+      const tx = await wallet.sendFinalize(name, {account: 0});
       assert(tx);
 
       await wallet.abandon(tx.hash());
@@ -337,7 +334,7 @@ describe('Multiple accounts participating in same auction', function() {
   describe('CANCEL', function() {
     it('should reject CANCEL from wrong account', async () => {
       await assert.rejects(async () => {
-        await wallet.sendCancel(name, { account: 'bob' });
+        await wallet.sendCancel(name, {account: 'bob'});
       }, {
         name: 'Error',
         message: `Account does not own: "${name}".`
@@ -345,7 +342,7 @@ describe('Multiple accounts participating in same auction', function() {
     });
 
     it('should send CANCEL from correct account', async () => {
-      const tx = await wallet.sendCancel(name, { account: 0 });
+      const tx = await wallet.sendCancel(name, {account: 0});
       assert(tx);
 
       await wallet.abandon(tx.hash());
@@ -370,7 +367,7 @@ describe('Multiple accounts participating in same auction', function() {
   describe('REVOKE', function() {
     it('should reject REVOKE from wrong account', async () => {
       await assert.rejects(async () => {
-        await wallet.sendRevoke(name, { account: 'bob' });
+        await wallet.sendRevoke(name, {account: 'bob'});
       }, {
         name: 'Error',
         message: `Account does not own: "${name}".`
@@ -378,7 +375,7 @@ describe('Multiple accounts participating in same auction', function() {
     });
 
     it('should send REVOKE from correct account', async () => {
-      const tx = await wallet.sendRevoke(name, { account: 0 });
+      const tx = await wallet.sendRevoke(name, {account: 0});
       assert(tx);
 
       await wallet.abandon(tx.hash());

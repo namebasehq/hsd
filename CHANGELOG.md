@@ -1,5 +1,82 @@
 # HSD Release Notes & Changelog
 
+## unreleased
+
+### Node changes
+
+- New RPC methods:
+  - `decoderesource` like `decodescript` accepts hex string as input and returns
+  JSON formatted DNS records resource.
+
+## v4.0.0
+
+**When upgrading to this version of hsd you must pass
+`--chain-migrate=3` when you run it for the first time.**
+
+### Node changes
+ - `FullNode` and `SPVNode` now accept the option `--agent` which adds a string
+  to the user-agent of the node (which will already contain hsd version) and is
+  sent to peers in the version packet. Strings must not contain slashes and
+  total user-agent string must be less than 255 characters.
+
+  - `FullNode` parses new configuration option `--compact-tree-on-init` and
+  `--compact-tree-init-interval` which will compact the Urkel Tree when the node
+  first opens, by deleting historical data. It will try to compact it again
+  after `tree-init-interval` has passed. Compaction will keep up to the last 288
+  blocks worth of tree data on disk (7-8 tree intervals) exposing the node to a
+  similar deep reorganization vulnerability as a chain-pruning node.
+
+## v3.0.0
+
+**When upgrading to this version of hsd you must pass
+`--chain-migrate=2 --wallet-migrate=1` when you run it for the first time.**
+
+### Database changes
+  - Updated database versions and layout.
+  - Separated migrations from WalletDB and ChainDB: [lib/migrations/README.md](./lib/migrations/README.md)
+  - Blockstore update: The way that block data is stored has changed for greater
+  performance, efficiency, reliability and portability. To upgrade to the new
+  disk layout it's necessary to move block data from LevelDB
+  (e.g. `~/.hsd/chain`) to a new file based block storage
+  (e.g. `~./.hsd/blocks`). That will happen automatically with the migration
+  flags.
+
+### Wallet API changes
+
+- New RPC methods:
+  - `signmessagewithname`: Like `signmessage` but uses a name instead of an
+    address. The owner's address will be used to sign the message.
+  - `verifymessagewithname`: Like `verifymessage` but uses a name instead of an
+    address. The owner's address will be used to verify the message.
+
+- New wallet creation accepts parameter `language` to generate the mnemonic phrase.
+
+- `rpc getbids` accepts a third parameter `unrevealed` _(bool)_ which filters the response by checking
+the wallet's unspent coins database for each bid. If an unspent coin is found, the output address
+of that coin is added to the JSON response. This is useful for wallet recovery scenarios
+when users need to call `rpc importnonce` to repair unknown blinds. The complete usage is now
+`rpc getbids name (own) (unrevealed)` so for example a wallet-recovering user would execute
+`rpc getbids null true true`.
+
+- Wallet RPC `getnames` (and HTTP endpoint `/wallet/:id/name`) now accept a
+boolean parameter "own" (default: `false`) that filters out names the wallet does not own.
+
+### DNS changes
+
+- DNSSEC proofs from the root name server were fixed, particularly around non-existent
+domains. The empty zone proofs were replaced with minimally covering NSEC records.
+
+- `FullNode` and `SPVNode` parse new option `--no-sig0` which disables SIG0 signing
+in the root nameserver and recursive resolver. The current SIG0 algorithm uses Blake2b
+and is identified as `PRIVATEDNS` which is incompatible with most legacy DNS software.
+
+### Other changes
+
+- The logging module `blgr` has been updated. Log files will now be rolled over
+at around 20 MB and timestamped. Only the last 10 log files will be kept on disk
+and older log files will be purged. These values can be configured by passing
+`--log-max-file-size` (in MB) and `--log-max-files`.
+
 ## v2.4.0
 
 ### Chain & Consensus changes

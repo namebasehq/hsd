@@ -1,11 +1,10 @@
-/* eslint-env mocha */
-
 'use strict';
 
 const assert = require('bsert');
 
 const WorkerPool = require('../lib/workers/workerpool');
 const Chain = require('../lib/blockchain/chain');
+const BlockStore = require('../lib/blockstore/level');
 const Mempool = require('../lib/mempool/mempool');
 const Miner = require('../lib/mining/miner');
 const Address = require('../lib/primitives/address');
@@ -14,11 +13,18 @@ const MemWallet = require('./util/memwallet');
 const {BufferSet} = require('buffer-map');
 
 const workers = new WorkerPool({
-  enabled: true
+  enabled: true,
+  size: 2
+});
+
+const blocks = new BlockStore({
+  network: 'regtest',
+  memory: true
 });
 
 const chain = new Chain({
   network: 'regtest',
+  blocks: blocks,
   memory: true,
   workers
 });
@@ -51,8 +57,11 @@ chain.on('connect', async (entry, block, view) => {
 });
 
 describe('Miner', function() {
+  this.timeout(10000);
+
   before(async () => {
     await workers.open();
+    await blocks.open();
     await chain.open();
     await mempool.open();
     await miner.open();
@@ -61,8 +70,9 @@ describe('Miner', function() {
   after(async () => {
     await miner.close();
     await mempool.close();
-    await workers.close();
     await chain.close();
+    await blocks.close();
+    await workers.close();
   });
 
   let walletAddr;

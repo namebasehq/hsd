@@ -1,14 +1,13 @@
-/* eslint-env mocha */
-/* eslint prefer-arrow-callback: "off" */
-
 'use strict';
 
 const assert = require('bsert');
 const random = require('bcrypto/lib/random');
+const Network = require('../lib/protocol/network');
 const MempoolEntry = require('../lib/mempool/mempoolentry');
 const Mempool = require('../lib/mempool/mempool');
 const WorkerPool = require('../lib/workers/workerpool');
 const Chain = require('../lib/blockchain/chain');
+const BlockStore = require('../lib/blockstore/level');
 const ChainEntry = require('../lib/blockchain/chainentry');
 const MTX = require('../lib/primitives/mtx');
 const Claim = require('../lib/primitives/claim');
@@ -36,13 +35,21 @@ const ownership = require('../lib/covenants/ownership');
 const ONE_HASH = Buffer.alloc(32, 0x00);
 ONE_HASH[0] = 0x01;
 
+const network = Network.get('regtest');
 const workers = new WorkerPool({
-  enabled: true
+  enabled: true,
+  size: 2
+});
+
+const blocks = new BlockStore({
+  memory: true,
+  network
 });
 
 const chain = new Chain({
-  network: 'regtest',
   memory: true,
+  network,
+  blocks,
   workers
 });
 
@@ -52,7 +59,7 @@ const mempool = new Mempool({
   workers
 });
 
-const wallet = new MemWallet();
+const wallet = new MemWallet({ network });
 
 let cachedTX = null;
 
@@ -115,6 +122,7 @@ describe('Mempool', function() {
 
   it('should open mempool', async () => {
     await workers.open();
+    await blocks.open();
     await chain.open();
     await mempool.open();
   });
@@ -223,6 +231,62 @@ describe('Mempool', function() {
     assert(txs.some((tx) => {
       return tx.hash().equals(f1.hash());
     }));
+  });
+
+  it('should get spent coins and reflect in coinview', async () => {
+    const wallet = new MemWallet({ network });
+    const addr = wallet.getAddress();
+
+    const dummyCoin = dummyInput(addr, random.randomBytes(32));
+
+    const mtx1 = new MTX();
+    mtx1.addOutput(wallet.getAddress(), 50000);
+    mtx1.addCoin(dummyCoin);
+
+    wallet.sign(mtx1);
+
+    const tx1 = mtx1.toTX();
+    const coin1 = Coin.fromTX(tx1, 0, -1);
+
+    const mtx2 = new MTX();
+    mtx2.addOutput(wallet.getAddress(), 10000);
+    mtx2.addOutput(wallet.getAddress(), 30000); // 10k fee
+    mtx2.addCoin(coin1);
+
+    wallet.sign(mtx2);
+
+    const tx2 = mtx2.toTX();
+
+    await mempool.addTX(tx1);
+
+    {
+      const view = await mempool.getCoinView(tx2);
+      const sview = await mempool.getSpentView(tx2);
+      assert(view.hasEntry(coin1));
+      assert(sview.hasEntry(coin1));
+      assert.strictEqual(mempool.hasCoin(coin1.hash, coin1.index), true);
+      assert.strictEqual(mempool.isSpent(coin1.hash, coin1.index), false);
+    }
+
+    await mempool.addTX(tx2);
+
+    {
+      const view = await mempool.getCoinView(tx1);
+      const sview = await mempool.getSpentView(tx1);
+      assert(!view.hasEntry(dummyCoin));
+      assert(sview.hasEntry(dummyCoin));
+      assert.strictEqual(mempool.hasCoin(coin1.hash, coin1.index), false);
+      assert.strictEqual(mempool.isSpent(coin1.hash, coin1.index), true);
+    }
+
+    {
+      const view = await mempool.getCoinView(tx2);
+      const sview = await mempool.getSpentView(tx2);
+      assert(!view.hasEntry(coin1));
+      assert(sview.hasEntry(coin1));
+      assert.strictEqual(mempool.hasCoin(coin1.hash, coin1.index), false);
+      assert.strictEqual(mempool.isSpent(coin1.hash, coin1.index), true);
+    }
   });
 
   it('should handle locktime', async () => {
@@ -404,19 +468,27 @@ describe('Mempool', function() {
   it('should destroy mempool', async () => {
     await mempool.close();
     await chain.close();
+    await blocks.close();
     await workers.close();
   });
 
   describe('Mempool disconnect and reorg handling', function () {
     const workers = new WorkerPool({
       // Must be disabled for `ownership.ignore`.
-      enabled: false
+      enabled: false,
+      size: 2
+    });
+
+    const blocks = new BlockStore({
+      memory: true,
+      network
     });
 
     const chain = new Chain({
       memory: true,
+      blocks,
       workers,
-      network: 'regtest'
+      network
     });
 
     const mempool = new Mempool({
@@ -425,12 +497,15 @@ describe('Mempool', function() {
       memory: true
     });
 
+    const wallet = new MemWallet({ network });
+
     const COINBASE_MATURITY = mempool.network.coinbaseMaturity;
     const TREE_INTERVAL = mempool.network.names.treeInterval;
     mempool.network.names.auctionStart = 0;
 
     before(async () => {
       await mempool.open();
+      await blocks.open();
       await chain.open();
       await workers.open();
     });
@@ -438,15 +513,14 @@ describe('Mempool', function() {
     after(async () => {
       await workers.close();
       await chain.close();
+      await blocks.close();
       await mempool.close();
     });
 
     // Number of coins available in
     // chaincoins (100k satoshi per coin).
     const N = 100;
-    const chaincoins = new MemWallet({
-      network: 'regtest'
-    });
+    const chaincoins = new MemWallet({ network });
 
     chain.on('block', (block, entry) => {
       chaincoins.addBlock(entry, block.txs);
@@ -480,8 +554,7 @@ describe('Mempool', function() {
         view.addTX(tx, -1);
       }
 
-      const now = Math.floor(Date.now() / 1000);
-      const time = chain.tip.time <= now ? chain.tip.time + 1 : now;
+      const time = chain.tip.time + 1;
 
       const block = new Block();
       block.txs = txs;
@@ -775,7 +848,7 @@ describe('Mempool', function() {
       const addr = chaincoins.createReceive().getAddress();
       open.addOutput(addr, 90000);
 
-      const name = rules.grindName(5, 0, mempool.network);
+      const name = rules.grindName(10, 0, mempool.network);
       const rawName = Buffer.from(name, 'ascii');
       const nameHash = rules.hashName(rawName);
       open.outputs[0].covenant.type = types.OPEN;
@@ -999,16 +1072,20 @@ describe('Mempool', function() {
       // Create a fake claim - just to get the correct timestamps
       let claim = await chaincoins.fakeClaim('cloudflare');
 
-      // Fast-forward the next block's timestamp to allow claim.
+      // Fast-forward the network time to allow claim.
+      // If the Cloudflare RRSIG timestamps are more than 2 hours
+      // into the future, the required minimum block timestamp
+      // would be out of consensus range. So we "set mocktime" first.
       const data = claim.getData(mempool.network);
-      const [block1] = await getMockBlock(chain);
-      block1.time = data.inception + 10000;
-      try {
-        ownership.ignore = true;
-        await chain.add(block1, VERIFY_BODY);
-      } finally {
-        ownership.ignore = false;
+
+      if (data.inception > mempool.network.now()) {
+        const delta = mempool.network.now() - data.inception;
+        mempool.network.time.offset = -delta;
       }
+
+      const [block1] = await getMockBlock(chain);
+      block1.time = data.inception + 1;
+      await chain.add(block1, VERIFY_BODY);
 
       // Add a few more blocks
       let block2;
@@ -1117,8 +1194,9 @@ describe('Mempool', function() {
 
     const chain = new Chain({
       memory: true,
+      blocks,
       workers,
-      network: 'regtest'
+      network
     });
 
     const mempool = new Mempool({
@@ -1130,6 +1208,7 @@ describe('Mempool', function() {
     });
 
     before(async () => {
+      await blocks.open();
       await mempool.open();
       await chain.open();
       await workers.open();
@@ -1139,13 +1218,14 @@ describe('Mempool', function() {
       await workers.close();
       await chain.close();
       await mempool.close();
+      await blocks.close();
     });
 
     // Number of coins available in
     // chaincoins (100k satoshi per coin).
     const N = 100;
-    const chaincoins = new MemWallet();
-    const wallet = new MemWallet();
+    const chaincoins = new MemWallet({ network });
+    const wallet = new MemWallet({ network });
 
     async function getMockBlock(chain, txs = [], cb = true) {
       if (cb) {

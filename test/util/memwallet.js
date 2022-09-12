@@ -203,6 +203,12 @@ class MemWallet {
     const op = new Outpoint(coin.hash, coin.index);
     const key = op.toKey();
 
+    if (this.coins.has(key)) {
+      // Update existing coin in case it has been confirmed.
+      this.coins.set(key, coin);
+      return;
+    }
+
     this.filter.add(op.encode());
 
     this.spent.delete(key);
@@ -286,9 +292,6 @@ class MemWallet {
     if (height == null)
       height = -1;
 
-    if (this.map.has(hash))
-      return true;
-
     const view = new CoinView();
 
     for (let i = 0; i < tx.inputs.length; i++) {
@@ -329,7 +332,7 @@ class MemWallet {
     if (height !== -1)
       this.connectNames(tx, view, height);
 
-    if (result) {
+    if (result && !this.map.has(hash)) {
       this.txs += 1;
       this.map.add(hash);
     }
@@ -1014,10 +1017,9 @@ class MemWallet {
 
     ns.maybeExpire(height, network);
 
-    const state = ns.state(height, network);
     const start = ns.height;
 
-    if (state !== states.OPENING)
+    if (!ns.isOpening(height, network))
       throw new Error('Name is not available.');
 
     if (start !== 0 && start !== height)
@@ -1065,13 +1067,12 @@ class MemWallet {
 
     ns.maybeExpire(height, network);
 
-    const state = ns.state(height, network);
     const start = ns.height;
 
-    if (state === states.OPENING)
+    if (ns.isOpening(height, network))
       throw new Error('Name has not reached the bidding phase yet.');
 
-    if (state !== states.BIDDING)
+    if (!ns.isBidding(height, network))
       throw new Error('Name is not available.');
 
     if (value > lockup)
@@ -1108,7 +1109,7 @@ class MemWallet {
     const network = this.network;
 
     if (!ns)
-      throw new Error(`Auction not found: "${name}".`);
+      throw new Error('Auction not found.');
 
     ns.maybeExpire(height, network);
 
@@ -1175,14 +1176,12 @@ class MemWallet {
     const network = this.network;
 
     if (!ns)
-      throw new Error(`Auction not found: "${name}".`);
+      throw new Error('Auction not found.');
 
     if (ns.isExpired(height, network))
-      throw new Error(`Name has expired: "${name}"!`);
+      throw new Error('Name has expired!');
 
-    const state = ns.state(height, network);
-
-    if (state < states.CLOSED)
+    if (!ns.isRedeemable(height, network))
       throw new Error('Auction is not yet closed.');
 
     const reveals = this.getReveals(nameHash);
@@ -1240,7 +1239,7 @@ class MemWallet {
     const network = this.network;
 
     if (!ns)
-      throw new Error(`Auction not found: "${name}".`);
+      throw new Error('Auction not found.');
 
     const coin = this.getCoin(ns.owner.toKey());
 
@@ -1248,7 +1247,7 @@ class MemWallet {
       throw new Error('Wallet did not win the auction.');
 
     if (ns.isExpired(height, network))
-      throw new Error(`Name has expired: "${name}"!`);
+      throw new Error('Name has expired!');
 
     // Is local?
     if (coin.height < ns.height)
@@ -1262,9 +1261,7 @@ class MemWallet {
         throw new Error('Claim is not yet mature.');
     }
 
-    const state = ns.state(height, network);
-
-    if (state !== states.CLOSED)
+    if (!ns.isClosed(height, network))
       throw new Error('Auction is not yet closed.');
 
     const output = new Output();
@@ -1292,6 +1289,9 @@ class MemWallet {
   async createUpdate(name, resource, options) {
     assert(typeof name === 'string');
 
+    if (resource === null)
+      resource = Resource.fromJSON({records:[]});
+
     if (resource instanceof Resource)
       resource = resource.encode();
 
@@ -1307,7 +1307,7 @@ class MemWallet {
     const network = this.network;
 
     if (!ns)
-      throw new Error(`Auction not found: "${name}".`);
+      throw new Error('Auction not found.');
 
     const coin = this.getCoin(ns.owner.toKey());
 
@@ -1318,15 +1318,13 @@ class MemWallet {
       return this.createRegister(name, resource, options);
 
     if (ns.isExpired(height, network))
-      throw new Error(`Name has expired: "${name}"!`);
+      throw new Error('Name has expired!');
 
     // Is local?
     if (coin.height < ns.height)
       throw new Error(`Wallet does not own: "${name}".`);
 
-    const state = ns.state(height, network);
-
-    if (state !== states.CLOSED)
+    if (!ns.isClosed(height, network))
       throw new Error('Auction is not yet closed.');
 
     if (!coin.covenant.isRegister()
@@ -1364,7 +1362,7 @@ class MemWallet {
     const network = this.network;
 
     if (!ns)
-      throw new Error(`Auction not found: "${name}".`);
+      throw new Error('Auction not found.');
 
     const coin = this.getCoin(ns.owner.toKey());
 
@@ -1372,15 +1370,13 @@ class MemWallet {
       throw new Error(`Wallet does not own: "${name}".`);
 
     if (ns.isExpired(height, network))
-      throw new Error(`Name has expired: "${name}"!`);
+      throw new Error('Name has expired!');
 
     // Is local?
     if (coin.height < ns.height)
       throw new Error(`Wallet does not own: "${name}".`);
 
-    const state = ns.state(height, network);
-
-    if (state !== states.CLOSED)
+    if (!ns.isClosed(height, network))
       throw new Error('Auction is not yet closed.');
 
     if (!coin.covenant.isRegister()
@@ -1422,7 +1418,7 @@ class MemWallet {
     const network = this.network;
 
     if (!ns)
-      throw new Error(`Auction not found: "${name}".`);
+      throw new Error('Auction not found.');
 
     const coin = this.getCoin(ns.owner.toKey());
 
@@ -1430,15 +1426,13 @@ class MemWallet {
       throw new Error(`Wallet does not own: "${name}".`);
 
     if (ns.isExpired(height, network))
-      throw new Error(`Name has expired: "${name}"!`);
+      throw new Error('Name has expired!');
 
     // Is local?
     if (coin.height < ns.height)
       throw new Error(`Wallet does not own: "${name}".`);
 
-    const state = ns.state(height, network);
-
-    if (state !== states.CLOSED)
+    if (!ns.isClosed(height, network))
       throw new Error('Auction is not yet closed.');
 
     if (!coin.covenant.isRegister()
@@ -1482,7 +1476,7 @@ class MemWallet {
     const network = this.network;
 
     if (!ns)
-      throw new Error(`Auction not found: "${name}".`);
+      throw new Error('Auction not found.');
 
     const coin = this.getCoin(ns.owner.toKey());
 
@@ -1490,15 +1484,13 @@ class MemWallet {
       throw new Error(`Wallet does not own: "${name}".`);
 
     if (ns.isExpired(height, network))
-      throw new Error(`Name has expired: "${name}"!`);
+      throw new Error('Name has expired!');
 
     // Is local?
     if (coin.height < ns.height)
       throw new Error(`Wallet does not own: "${name}".`);
 
-    const state = ns.state(height, network);
-
-    if (state !== states.CLOSED)
+    if (!ns.isClosed(height, network))
       throw new Error('Auction is not yet closed.');
 
     if (!coin.covenant.isTransfer())
@@ -1532,7 +1524,7 @@ class MemWallet {
     const network = this.network;
 
     if (!ns)
-      throw new Error(`Auction not found: "${name}".`);
+      throw new Error('Auction not found.');
 
     const coin = this.getCoin(ns.owner.toKey());
 
@@ -1540,15 +1532,13 @@ class MemWallet {
       throw new Error(`Wallet does not own: "${name}".`);
 
     if (ns.isExpired(height, network))
-      throw new Error(`Name has expired: "${name}"!`);
+      throw new Error('Name has expired!');
 
     // Is local?
     if (coin.height < ns.height)
       throw new Error(`Wallet does not own: "${name}".`);
 
-    const state = ns.state(height, network);
-
-    if (state !== states.CLOSED)
+    if (!ns.isClosed(height, network))
       throw new Error('Auction is not yet closed.');
 
     if (!coin.covenant.isTransfer())
@@ -1598,7 +1588,7 @@ class MemWallet {
     const network = this.network;
 
     if (!ns)
-      throw new Error(`Auction not found: "${name}".`);
+      throw new Error('Auction not found.');
 
     const coin = this.getCoin(ns.owner.toKey());
 
@@ -1610,11 +1600,9 @@ class MemWallet {
       throw new Error(`Wallet does not own: "${name}".`);
 
     if (ns.isExpired(height, network))
-      throw new Error(`Name has expired: "${name}"!`);
+      throw new Error('Name has expired!');
 
-    const state = ns.state(height, network);
-
-    if (state !== states.CLOSED)
+    if (!ns.isClosed(height, network))
       throw new Error('Auction is not yet closed.');
 
     if (!coin.covenant.isRegister()
@@ -1703,6 +1691,72 @@ class MemWallet {
 
   async send(options) {
     const mtx = await this.create(options);
+    this.addTX(mtx.toTX());
+    return mtx;
+  }
+
+  async sendOpen(name, options) {
+    const mtx = await this.createOpen(name, options);
+    this.addTX(mtx.toTX());
+    return mtx;
+  }
+
+  async sendBid(name, value, lockup, options) {
+    const mtx = await this.createBid(name, value, lockup, options);
+    this.addTX(mtx.toTX());
+    return mtx;
+  }
+
+  async sendReveal(name, options) {
+    const mtx = await this.createReveal(name, options);
+    this.addTX(mtx.toTX());
+    return mtx;
+  }
+
+  async sendRedeem(name, options) {
+    const mtx = await this.createRedeem(name, options);
+    this.addTX(mtx.toTX());
+    return mtx;
+  }
+
+  async sendRegister(name, resource, options) {
+    const mtx = await this.createRegister(name, resource, options);
+    this.addTX(mtx.toTX());
+    return mtx;
+  }
+
+  async sendUpdate(name, resource, options) {
+    const mtx = await this.createUpdate(name, resource, options);
+    this.addTX(mtx.toTX());
+    return mtx;
+  }
+
+  async sendRenewal(name, options) {
+    const mtx = await this.createRenewal(name, options);
+    this.addTX(mtx.toTX());
+    return mtx;
+  }
+
+  async sendTransfer(name, address, options) {
+    const mtx = await this.createTransfer(name, address, options);
+    this.addTX(mtx.toTX());
+    return mtx;
+  }
+
+  async sendCancel(name, resource, options) {
+    const mtx = await this.createCancel(name, resource, options);
+    this.addTX(mtx.toTX());
+    return mtx;
+  }
+
+  async sendFinalize(name, options) {
+    const mtx = await this.createFinalize(name, options);
+    this.addTX(mtx.toTX());
+    return mtx;
+  }
+
+  async sendRevoke(name, options) {
+    const mtx = await this.createRevoke(name, options);
     this.addTX(mtx.toTX());
     return mtx;
   }

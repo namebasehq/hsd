@@ -1,7 +1,3 @@
-/* eslint-env mocha */
-/* eslint prefer-arrow-callback: "off" */
-/* eslint no-implicit-coercion: "off" */
-
 'use strict';
 
 const assert = require('bsert');
@@ -21,6 +17,8 @@ const {
   revealPeriod,
   transferLockup
 } = network.names;
+
+const GNAME_SIZE = 10;
 
 describe('Wallet rescan with namestate transitions', function() {
   describe('Only sends OPEN', function() {
@@ -53,7 +51,7 @@ describe('Wallet rescan with namestate transitions', function() {
       return node.chain.db.getNameStatus(nameHash, height, hardened);
     };
 
-    const NAME = rules.grindName(4, 4, network);
+    const NAME = rules.grindName(GNAME_SIZE, 4, network);
 
     // Hash of the FINALIZE transaction
     let aliceFinalizeHash;
@@ -307,7 +305,7 @@ describe('Wallet rescan with namestate transitions', function() {
       return node.chain.db.getNameStatus(nameHash, height, hardened);
     };
 
-    const NAME = rules.grindName(4, 4, network);
+    const NAME = rules.grindName(GNAME_SIZE, 4, network);
 
     // Block that confirmed the bids
     let bidBlockHash;

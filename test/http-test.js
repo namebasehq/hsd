@@ -1,6 +1,3 @@
-/* eslint-env mocha */
-/* eslint prefer-arrow-callback: "off" */
-
 'use strict';
 
 const assert = require('bsert');
@@ -24,7 +21,7 @@ const node = new FullNode({
   plugins: [require('../lib/wallet/plugin')]
 });
 
-const {NodeClient, WalletClient} = require('namebase-hs-client');
+const {NodeClient, WalletClient} = require('hs-client');
 
 const nclient = new NodeClient({
   port: network.rpcPort,

@@ -1,6 +1,3 @@
-/* eslint-env mocha */
-/* eslint prefer-arrow-callback: "off" */
-
 'use strict';
 
 const assert = require('bsert');
@@ -9,6 +6,7 @@ const FullNode = require('../lib/node/fullnode');
 const Address = require('../lib/primitives/address');
 const rules = require('../lib/covenants/rules');
 const {WalletClient} = require('hs-client');
+const {forValue} = require('./util/common');
 
 const network = Network.get('regtest');
 
@@ -32,9 +30,10 @@ const wclient = new WalletClient({
 
 const {wdb} = node.require('walletdb');
 
-const name = rules.grindName(5, 1, network);
+const GNAME_SIZE = 10;
+const name = rules.grindName(GNAME_SIZE, 1, network);
 const nameHash = rules.hashName(name);
-const wrongName = rules.grindName(5, 1, network);
+const wrongName = rules.grindName(GNAME_SIZE, 1, network);
 const wrongNameHash = rules.hashName(wrongName);
 
 let alice, bob, aliceReceive, bobReceive;
@@ -100,15 +99,18 @@ describe('Wallet Import Name', function() {
     assert(ns4 === null);
   });
 
-  it('should ignore re-importing existing name', async () => {
-    await alice.importName(name);
+  it('should not re-import an existing name', async () => {
+    await assert.rejects(
+      alice.importName(name),
+      {message: 'Name already exists.'}
+    );
   });
 
   it('should bid on names from Alice\'s wallet', async () => {
     // Sanity check: bids are allowed starting in the NEXT block
     await assert.rejects(
       alice.sendBid(name, 100001, 200001),
-      {message: `Name has not reached the bidding phase yet: "${name}".`}
+      {message: 'Name has not reached the bidding phase yet.'}
     );
     await mineBlocks(1);
     await wdb.rescan(0);
@@ -220,9 +222,74 @@ describe('Wallet Import Name', function() {
         assert(!bid.own);
     });
 
-    it('should ignore re-importing name', async () => {
+    it('should not re-import name', async () => {
       await wclient.execute('selectwallet', ['charlie']);
-      await wclient.execute('importname', [name, 0]);
+
+      await assert.rejects(
+        wclient.execute('importname', [name, 0]),
+        {message: 'Name already exists.'}
+      );
+    });
+  });
+
+  describe('import multiple / overlapping names', function() {
+    const name1 = rules.grindName(GNAME_SIZE, 1, network);
+    const name2 = rules.grindName(GNAME_SIZE, 1, network);
+    const name3 = rules.grindName(GNAME_SIZE, 1, network);
+    let startHeight;
+
+    it('should open and bid from Alice\'s wallet', async () => {
+      await alice.sendOpen(name1, false);
+      await alice.sendOpen(name2, false);
+      await alice.sendOpen(name3, false);
+      startHeight = node.chain.tip.height;
+
+      await mineBlocks(network.names.treeInterval + 1);
+      await forValue(wdb, 'height', node.chain.height);
+
+      await alice.sendBid(name1, 10000, 10000);
+      await alice.sendBid(name2, 20000, 20000);
+      await alice.sendBid(name3, 30000, 30000);
+      await mineBlocks(1);
+    });
+
+    it('should import names into Bob\'s wallet', async () => {
+      assert.strictEqual(await bob.getNameStateByName(name1), null);
+      assert.strictEqual(await bob.getNameStateByName(name2), null);
+      assert.strictEqual(await bob.getNameStateByName(name3), null);
+      assert.deepStrictEqual(await bob.getBidsByName(name1), []);
+      assert.deepStrictEqual(await bob.getBidsByName(name2), []);
+      assert.deepStrictEqual(await bob.getBidsByName(name3), []);
+
+      await bob.importName(name1);
+      await wdb.rescan(startHeight);
+
+      assert.ok(await bob.getNameStateByName(name1));
+      assert.strictEqual(await bob.getNameStateByName(name2), null);
+      assert.strictEqual(await bob.getNameStateByName(name3), null);
+      assert.ok(await bob.getBidsByName(name1));
+      assert.deepStrictEqual(await bob.getBidsByName(name2), []);
+      assert.deepStrictEqual(await bob.getBidsByName(name3), []);
+
+      await bob.importName(name2);
+      await wdb.rescan(startHeight);
+
+      assert.ok(await bob.getNameStateByName(name1));
+      assert.ok(await bob.getNameStateByName(name2));
+      assert.strictEqual(await bob.getNameStateByName(name3), null);
+      assert.ok(await bob.getBidsByName(name1));
+      assert.ok(await bob.getBidsByName(name2));
+      assert.deepStrictEqual(await bob.getBidsByName(name3), []);
+
+      await bob.importName(name3);
+      await wdb.rescan(startHeight);
+
+      assert.ok(await bob.getNameStateByName(name1));
+      assert.ok(await bob.getNameStateByName(name2));
+      assert.ok(await bob.getNameStateByName(name3));
+      assert.ok(await bob.getBidsByName(name1));
+      assert.ok(await bob.getBidsByName(name2));
+      assert.ok(await bob.getBidsByName(name3));
     });
   });
 });

@@ -43,7 +43,8 @@
       },
       "rules": {
         "max-len": "off",
-        "prefer-arrow-callback": "off"
+        "prefer-arrow-callback": "off",
+        "no-return-assign": "off"
       }
     }
   ],

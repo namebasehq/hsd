@@ -1,6 +1,3 @@
-/* eslint-env mocha */
-/* eslint prefer-arrow-callback: "off" */
-
 'use strict';
 
 const assert = require('bsert');
@@ -9,6 +6,7 @@ const mine = require('../lib/mining/mine');
 const FullNode = require('../lib/node/fullnode');
 const Headers = require('../lib/primitives/headers');
 const consensus = require('../lib/protocol/consensus');
+const {forEvent, sleep}  = require('./util/common');
 
 const node = new FullNode({
   memory: true,
@@ -38,13 +36,16 @@ describe('Get Work', function() {
   });
 
   it('should mine 10 blocks', async () => {
+    const connectEvents = forEvent(chain, 'connect', 10, 10000);
     for (let i = 0; i < 10; i++) {
       const block = await miner.mineBlock();
       assert(block);
       await chain.add(block);
+      // lower mtp.
+      await sleep(500);
     }
 
-    await new Promise(r => setTimeout(r, 1000));
+    await connectEvents;
   });
 
   it('should get and submit work', async () => {
@@ -72,13 +73,13 @@ describe('Get Work', function() {
 
     assert.strictEqual(result, true);
 
-    await new Promise(r => setTimeout(r, 2000));
+    await sleep(3000);
 
     const json2 = await rpc.getWork([]);
     const data2 = Buffer.from(json2.data, 'hex');
     const hdr2 = Headers.fromMiner(data2);
 
-    assert(hdr1.witnessRoot.equals(hdr2.witnessRoot));
+    assert.bufferEqual(hdr1.witnessRoot, hdr2.witnessRoot);
     assert.notStrictEqual(hdr1.time, hdr2.time);
 
     bio.writeU32(data1, nonce, 0);
@@ -115,7 +116,7 @@ describe('Get Work', function() {
       ]
     });
 
-    await new Promise(r => setTimeout(r, 2000));
+    await sleep(2000);
 
     const json2 = await rpc.getWork([]);
     const data2 = Buffer.from(json2.data, 'hex');
@@ -154,7 +155,7 @@ describe('Get Work', function() {
       ]
     });
 
-    await new Promise(r => setTimeout(r, 2000));
+    await sleep(2000);
 
     const json2 = await rpc.getWork([]);
     const data2 = Buffer.from(json2.data, 'hex');
@@ -188,6 +189,45 @@ describe('Get Work', function() {
     assert.strictEqual(block.txs.length, 3);
     assert.strictEqual(chain.tip.height, 14);
     assert.strictEqual(chain.height, 14);
+  });
+
+  it('should get fees from template', async () => {
+    const json1 = await rpc.getWork([]);
+    assert.strictEqual(json1.fee, 0);
+
+    rpc.lastActivity -= 11;
+
+    await wallet.send({
+      outputs: [
+        {
+          address: await wallet.receiveAddress(),
+          value: 25 * consensus.COIN
+        }
+      ],
+      hardFee: 12345
+    });
+
+    await sleep(2000);
+
+    const json2 = await rpc.getWork([]);
+    assert.strictEqual(json2.fee, 12345);
+
+    rpc.lastActivity -= 11;
+
+    await wallet.send({
+      outputs: [
+        {
+          address: await wallet.receiveAddress(),
+          value: 10 * consensus.COIN
+        }
+      ],
+      hardFee: 54321
+    });
+
+    await sleep(2000);
+
+    const json3 = await rpc.getWork([]);
+    assert.strictEqual(json3.fee, 66666);
   });
 
   it('should cleanup', async () => {
