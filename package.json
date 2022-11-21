@@ -1,6 +1,6 @@
 {
   "name": "hsd",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "Cryptocurrency bike-shed",
   "license": "MIT",
   "repository": "git://github.com/namebasehq/hsd.git",
@@ -51,9 +51,7 @@
     "urkel": "~0.7.0"
   },
   "devDependencies": {
-    "babel-eslint": "^10.1.0",
-    "bmocha": "^2.1.5",
-    "eslint": "^7.7.0"
+    "bmocha": "^2.1.5"
   },
   "main": "./lib/hsd.js",
   "bin": {
