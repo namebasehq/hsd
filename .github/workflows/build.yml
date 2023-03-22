@@ -29,30 +29,6 @@ jobs:
     - name: Docs
       run: npm run build-docs
 
-  test-coverage:
-    name: Test Coverage
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: Setup
-      uses: actions/setup-node@v3
-      with:
-        node-version: 18.x
-
-    - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y libunbound-dev |
-           npm install nyc coveralls
-
-    - name: Test
-      run: npm run test-ci
-
-    - name: Coverage
-      uses: coverallsapp/github-action@master
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-
   build-test:
     name: Build & Test
     runs-on: ${{ matrix.os }}
