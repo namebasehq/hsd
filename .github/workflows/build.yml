@@ -69,9 +69,6 @@ jobs:
       with:
         node-version: ${{ matrix.node }}
 
-    - name: Update npm
-      run: npm i -g npm
-
     - name: Install libunbound
       if: contains(matrix.os, 'ubuntu')
       run: sudo apt-get update && sudo apt-get install -y libunbound-dev
