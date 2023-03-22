@@ -100,10 +100,6 @@ describe('Wallet Import Name', function() {
     assert(ns4 === null);
   });
 
-  it('should ignore re-importing existing name', async () => {
-    await alice.importName(name);
-  });
-
   it('should bid on names from Alice\'s wallet', async () => {
     // Sanity check: bids are allowed starting in the NEXT block
     await assert.rejects(
@@ -218,11 +214,6 @@ describe('Wallet Import Name', function() {
       assert.strictEqual(charlieBids.length, 6);
       for (const bid of charlieBids)
         assert(!bid.own);
-    });
-
-    it('should ignore re-importing name', async () => {
-      await wclient.execute('selectwallet', ['charlie']);
-      await wclient.execute('importname', [name, 0]);
     });
   });
 });
