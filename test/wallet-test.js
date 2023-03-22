@@ -5,7 +5,6 @@
 'use strict';
 
 const assert = require('bsert');
-const LRU = require('blru');
 const { WalletClient } = require('hs-client');
 const consensus = require('../lib/protocol/consensus');
 const Network = require('../lib/protocol/network');
