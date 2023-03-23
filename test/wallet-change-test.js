@@ -176,7 +176,7 @@ describe('Derive and save change addresses', function() {
     }
   });
 
-  it('default account should have "staticAddress" property set to true', async function () {
+  it('default account should have "staticAddress" property set to true', async () => {
     const defaultAccount = await fixedAddressWallet.getAccount('default');
     assert.equal(defaultAccount.staticAddress, true);
   });
@@ -186,19 +186,20 @@ describe('Derive and save change addresses', function() {
     await wdb.rescan(0);
   });
 
-  it('should generate some number of transactions all having the same changeAddr', async function () {
-
+  it('should generate some number of transactions all having the same changeAddr', async () => {
     for (let i = 0; i < 20; i++) {
-      const tx = await fixedAddressWallet.send({ outputs: [{
+      const tx = await fixedAddressWallet.send({
+        outputs: [{
           address: Address.fromHash(Buffer.alloc(32, 1)),
           value: 10000
-        }] });
+        }]
+      });
 
       for (const output of tx.outputs) {
         const outputAddrString = output.address.toString(wdb.network);
-        if (output.value !== 10000) {
+
+        if (output.value !== 10000)
           assert.strictEqual(changeAddrStr, outputAddrString, 'change addresses are different');
-        }
       }
     }
   });

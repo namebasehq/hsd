@@ -265,7 +265,7 @@ describe('Wallet HTTP', function () {
     });
 
     // wait for tx event on mempool
-    await common.event(node.mempool, 'tx');
+    await common.forEvent(node.mempool, 'tx');
 
     const mempool = await nclient.getMempool();
 
@@ -1367,38 +1367,4 @@ function openOutput(name, address) {
   output.covenant.push(rawName);
 
   return output;
-}
-
-// create bid
-function createBid(name, bid, idempotencyKey) {
-  return {
-      name: name,
-      bid: bid,
-      lockup: bid + 1000000,
-      idempotencyKey: idempotencyKey
-  };
-}
-
-// create name with arbitrary number of bids
-async function createNameWithBids(bidCount) {
-  const name = await nclient.execute('grindname', [6]);
-  const bids = [];
-  const BaseBid = 10000000;
-
-  for (let i = 0; i < bidCount; i++) {
-    const idempotencyKey = name + i;
-    bids.push(createBid(name, BaseBid + i, idempotencyKey));
-  }
-
-  return { name, bids };
-}
-
-// filter and return outputs of type
-function getOutputsOfType(processedFinishes, type) {
-  return processedFinishes
-    .filter((element) => {
-      return element.output.covenant.action === type;
-    }).map((element) => {
-      return element.output;
-    });
 }

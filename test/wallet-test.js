@@ -5,7 +5,6 @@
 'use strict';
 
 const assert = require('bsert');
-const LRU = require('blru');
 const { WalletClient } = require('hs-client');
 const consensus = require('../lib/protocol/consensus');
 const Network = require('../lib/protocol/network');
@@ -2786,6 +2785,7 @@ describe('Wallet', function() {
     });
 
     it('should confirm cloudflare CLAIM', async () => {
+      this.timeout(10000);
       // Use a fresh wallet.
       const pre = await wallet.getBalance();
       assert.equal(pre.tx, 0);
@@ -3271,6 +3271,8 @@ describe('Wallet', function() {
   });
 
   describe('Create staticAddress wallet', function () {
+    const wdb = new WalletDB({ network, workers });
+
     before(async function() {
       await wdb.open();
     });

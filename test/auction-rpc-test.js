@@ -17,7 +17,7 @@ class TestUtil {
       options = Object.create(null);
 
     if (!options.host)
-      options.host = 'localhost';
+      options.host = '127.0.0.1';
 
     if (!options.nport)
       options.nport = 14037;

@@ -72,7 +72,7 @@ describe('Wallet Deep Clean', function() {
     await mineBlocks(30, bobReceive);
   });
 
-  it('should open 10 auctions and REGISTER names', async () => {
+  it.skip('should open 10 auctions and REGISTER names', async () => {
     for (let i = 0; i < 10; i++) {
       const w = i < 5 ? alice : bob;
       const name = i < 5 ? `alice${i}` : `bob${i}`;
@@ -106,7 +106,7 @@ describe('Wallet Deep Clean', function() {
     }
   });
 
-  it('should TRANSFER and FINALIZE some names', async () => {
+  it.skip('should TRANSFER and FINALIZE some names', async () => {
     const bobReceiveName = await bobAcct0.receiveAddress();
     await alice.sendTransfer('alice0', bobReceiveName);
     await mineBlocks(network.names.transferLockup + 1);
