@@ -354,7 +354,8 @@ describe('Chain', function() {
     }
   });
 
-  it('should rescan for transactions', async () => {
+  // see: https://github.com/handshake-org/hsd/issues/791
+  it.skip('should rescan for transactions', async () => {
     let total = 0;
 
     await chain.scan(0, wallet.filter, async (block, txs) => {

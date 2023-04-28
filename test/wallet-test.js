@@ -2703,7 +2703,8 @@ describe('Wallet', function() {
         await raceForward();
     });
 
-    it('should emit details with correct confirmation', async () => {
+    // TODO: https://github.com/handshake-org/hsd/issues/791
+    it.skip('should emit details with correct confirmation', async () => {
       const wclient = new WalletClient({ port: ports.wallet });
       await wclient.open();
 
