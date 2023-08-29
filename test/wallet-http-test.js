@@ -24,6 +24,7 @@ const { types } = rules;
 const secp256k1 = require('bcrypto/lib/secp256k1');
 const network = Network.get('regtest');
 const assert = require('bsert');
+const {BufferSet} = require('buffer-map');
 const common = require('./util/common');
 
 const TIMEOUT = 100;
@@ -55,6 +56,7 @@ const wclientTimeout = new WalletClient({
   timeout: TIMEOUT
 });
 
+const {wdb} = node.require('walletdb');
 const wallet = wclient.wallet('primary');
 const wallet2 = wclient.wallet('secondary');
 const walletTimeout = wclientTimeout.wallet('primary');
@@ -272,7 +274,6 @@ describe('Wallet HTTP', function () {
 
     const prePending = await wallet.getPending('default');
 
-    const wdb = node.plugins.walletdb.wdb;
     const primary = await wdb.get('primary');
 
     delayMethodOnce(primary, 'createTX', TIMEOUT_METHOD);
@@ -323,10 +324,9 @@ describe('Wallet HTTP', function () {
 
   it('should not broadcast an open on client close', async () => {
     const prePending = await wallet.getPending('default');
-    const wdb = node.plugins.walletdb.wdb;
     const primary = await wdb.get('primary');
 
-    delayMethodOnce(primary, 'createOpen', TIMEOUT_METHOD);
+    delayMethodOnce(primary, 'sendOpen', TIMEOUT_METHOD);
 
     let err;
     try {
@@ -513,10 +513,9 @@ describe('Wallet HTTP', function () {
     await mineBlocks(treeInterval + 1, cbAddress);
 
     const prePending = await wallet.getPending('default');
-    const wdb = node.plugins.walletdb.wdb;
     const primary = await wdb.get('primary');
 
-    delayMethodOnce(primary, 'createBid', TIMEOUT_METHOD);
+    delayMethodOnce(primary, 'sendBid', TIMEOUT_METHOD);
 
     let err;
     try {
@@ -548,7 +547,7 @@ describe('Wallet HTTP', function () {
     const address = Address.fromString(cbAddress, network.type);
     const nameHash = rules.hashName(name);
 
-    const primary = node.plugins.walletdb.wdb.primary;
+    const primary = wdb.primary;
     const nonce = await primary.generateNonce(nameHash, address, bid);
     const blind = rules.blind(bid, nonce);
 
@@ -573,7 +572,7 @@ describe('Wallet HTTP', function () {
     const address = Address.fromString(cbAddress, network.type);
     const nameHash = rules.hashName(name);
 
-    const primary = node.plugins.walletdb.wdb.primary;
+    const primary = wdb.primary;
     const nonce = await primary.generateNonce(nameHash, address, bid);
     const blind = rules.blind(bid, nonce);
 
@@ -808,10 +807,9 @@ describe('Wallet HTTP', function () {
 
     const prePending = await wallet.getPending('default');
 
-    const wdb = node.plugins.walletdb.wdb;
     const primary = await wdb.get('primary');
 
-    delayMethodOnce(primary, 'createReveal', TIMEOUT_METHOD);
+    delayMethodOnce(primary, 'sendReveal', TIMEOUT_METHOD);
 
     let err;
     try {
@@ -1133,10 +1131,9 @@ describe('Wallet HTTP', function () {
     await mineBlocks(revealPeriod + 1, cbAddress);
 
     const prePending = await wallet.getPending('default');
-    const wdb = node.plugins.walletdb.wdb;
     const primary = await wdb.get('primary');
 
-    delayMethodOnce(primary, 'createRedeem', TIMEOUT_METHOD);
+    delayMethodOnce(primary, 'sendRedeem', TIMEOUT_METHOD);
 
     let err;
     try {
@@ -1232,10 +1229,9 @@ describe('Wallet HTTP', function () {
     await mineBlocks(revealPeriod + 1, cbAddress);
 
     const prePending = await wallet.getPending('default');
-    const wdb = node.plugins.walletdb.wdb;
     const primary = await wdb.get('primary');
 
-    delayMethodOnce(primary, 'createUpdate', TIMEOUT_METHOD);
+    delayMethodOnce(primary, 'sendUpdate', TIMEOUT_METHOD);
 
     let err;
     try {
@@ -1344,10 +1340,9 @@ describe('Wallet HTTP', function () {
     await mineBlocks(treeInterval + 1, cbAddress);
 
     const prePending = await wallet.getPending('default');
-    const wdb = node.plugins.walletdb.wdb;
     const primary = await wdb.get('primary');
 
-    delayMethodOnce(primary, 'createRenewal', TIMEOUT_METHOD);
+    delayMethodOnce(primary, 'sendRenewal', TIMEOUT_METHOD);
 
     let err;
     try {
@@ -1434,10 +1429,9 @@ describe('Wallet HTTP', function () {
     const { receiveAddress } = await wallet.getAccount(accountTwo);
 
     const prePending = await wallet.getPending('default');
-    const wdb = node.plugins.walletdb.wdb;
     const primary = await wdb.get('primary');
 
-    delayMethodOnce(primary, 'createTransfer', TIMEOUT_METHOD);
+    delayMethodOnce(primary, 'sendTransfer', TIMEOUT_METHOD);
 
     let err;
     try {
@@ -1547,10 +1541,9 @@ describe('Wallet HTTP', function () {
     await mineBlocks(transferLockup + 1, cbAddress);
 
     const prePending = await wallet.getPending('default');
-    const wdb = node.plugins.walletdb.wdb;
     const primary = await wdb.get('primary');
 
-    delayMethodOnce(primary, 'createFinalize', TIMEOUT_METHOD);
+    delayMethodOnce(primary, 'sendFinalize', TIMEOUT_METHOD);
 
     let err;
     try {
@@ -1663,10 +1656,9 @@ describe('Wallet HTTP', function () {
     await mineBlocks(transferLockup + 1, cbAddress);
 
     const prePending = await wallet.getPending('default');
-    const wdb = node.plugins.walletdb.wdb;
     const primary = await wdb.get('primary');
 
-    delayMethodOnce(primary, 'createCancel', TIMEOUT_METHOD);
+    delayMethodOnce(primary, 'sendCancel', TIMEOUT_METHOD);
 
     let err;
     try {
@@ -1756,10 +1748,9 @@ describe('Wallet HTTP', function () {
     await mineBlocks(treeInterval + 1, cbAddress);
 
     const prePending = await wallet.getPending('default');
-    const wdb = node.plugins.walletdb.wdb;
     const primary = await wdb.get('primary');
 
-    delayMethodOnce(primary, 'createRevoke', TIMEOUT_METHOD);
+    delayMethodOnce(primary, 'sendRevoke', TIMEOUT_METHOD);
 
     let err;
     try {
@@ -1793,6 +1784,477 @@ describe('Wallet HTTP', function () {
     const changeAddr = (await staticAddressWallet.createChange('default')).toString(network);
     const receiveAddr = (await staticAddressWallet.createAddress('default')).toString(network);
     assert.equal(changeAddr, receiveAddr);
+  });
+
+  describe('HTTP tx races (Integration)', function() {
+    const WNAME1 = 'racetest-1';
+    const WNAME2 = 'racetest-2';
+    const rcwallet1 = wclient.wallet(WNAME1);
+    const rcwallet2 = wclient.wallet(WNAME2);
+    const FUND_VALUE = 1e6;
+    const HARD_FEE = 1e4;
+    const NAMES = [];
+    const PASSPHRASE1 = 'racetest-passphrase-1';
+    const PASSPHRASE2 = 'racetest-passphrase-2';
+
+    let w1addr;
+
+    const fundNcoins = async (recvWallet, n, value = FUND_VALUE) => {
+      assert(typeof n === 'number');
+      for (let i = 0; i < n; i++) {
+        const addr = (await recvWallet.createAddress('default')).address;
+
+        await wallet.send({
+          hardFee: HARD_FEE,
+          outputs: [{
+            address: addr,
+            value: value
+          }]
+        });
+      }
+
+      const blockConnects = common.forEvent(wdb, 'block connect', 1);
+      await mineBlocks(1, w1addr);
+      await blockConnects;
+    };
+
+    const checkDoubleSpends = (txs) => {
+      const spentCoins = new BufferSet();
+
+      for (const tx of txs) {
+        for (const input of tx.inputs) {
+          const key = input.prevout.toKey();
+
+          if (spentCoins.has(key))
+            throw new Error(`Input ${input.prevout.format()} is already spent.`);
+
+          spentCoins.add(key);
+        }
+      }
+    };
+
+    const wMineBlocks = async (n = 1) => {
+      const forConnect = common.forEvent(wdb, 'block connect', n);
+      await mineBlocks(n, w1addr);
+      await forConnect;
+    };
+
+    before(async () => {
+      w1addr = (await wallet.createAddress('default')).address;
+      const winfo1 = await wclient.createWallet(WNAME1, {
+        passphrase: PASSPHRASE1
+      });
+
+      const winfo2 = await wclient.createWallet(WNAME2, {
+        passphrase: PASSPHRASE2
+      });
+
+      assert(winfo1);
+      assert(winfo2);
+
+      // Fund primary wallet.
+      await wMineBlocks(5);
+    });
+
+    beforeEach(async () => {
+      await rcwallet1.lock();
+      await rcwallet2.lock();
+    });
+
+    it('should fund 3 new transactions', async () => {
+      const promises = [];
+
+      await fundNcoins(rcwallet1, 3);
+
+      const forMemTX = common.forEvent(node.mempool, 'tx', 3);
+
+      for (let i = 0; i < 3; i++) {
+        promises.push(rcwallet1.send({
+          passphrase: PASSPHRASE1,
+          subtractFee: true,
+          hardFee: HARD_FEE,
+          outputs: [{
+            address: w1addr,
+            value: FUND_VALUE
+          }]
+        }));
+      }
+
+      const results = await Promise.all(promises);
+      const txs = results.map(details => MTX.fromHex(details.tx));
+      checkDoubleSpends(txs);
+
+      await forMemTX;
+      await wMineBlocks(1);
+
+      const balance = await rcwallet1.getBalance();
+
+      assert.strictEqual(balance.confirmed, 0);
+      assert.strictEqual(balance.unconfirmed, 0);
+      assert.strictEqual(balance.coin, 0);
+    });
+
+    it('should open 3 name auctions', async () => {
+      await fundNcoins(rcwallet1, 3);
+
+      for (let i = 0; i < 3; i++)
+        NAMES.push(rules.grindName(10, node.chain.tip.height, network));
+
+      const promises = [];
+
+      const forMemTX = common.forEvent(node.mempool, 'tx', 4);
+
+      for (let i = 0; i < 3; i++) {
+        promises.push(rcwallet1.createOpen({
+          name: NAMES[i],
+          passphrase: PASSPHRASE1,
+          hardFee: HARD_FEE
+        }));
+      }
+
+      const results = await Promise.all(promises);
+      const txs = results.map(result => MTX.fromHex(result.hex));
+      checkDoubleSpends(txs);
+
+      // spend all money for now.
+      await rcwallet1.send({
+        subtractFee: true,
+        outputs: [{
+          value: (FUND_VALUE - HARD_FEE) * 3,
+          address: w1addr
+        }]
+      });
+
+      await forMemTX;
+      await wMineBlocks(1);
+
+      const balance = await rcwallet1.getBalance();
+      // 3 opens (0 value)
+      assert.strictEqual(balance.coin, 3);
+      assert.strictEqual(balance.confirmed, 0);
+    });
+
+    it('should bid 3 times', async () => {
+      const promises = [];
+
+      // 2 blocks.
+      await fundNcoins(rcwallet1, 3, HARD_FEE * 2);
+      await fundNcoins(rcwallet2, 6, HARD_FEE * 2);
+
+      // this is 2 blocks ahead, but does not matter for this test.
+      await wMineBlocks(network.names.treeInterval + 1);
+
+      const forMemTX = common.forEvent(node.mempool, 'tx', 3 + 3 * 2);
+
+      for (let i = 0; i < 3; i++) {
+        // make sure we use ALL coins, no NONE left.
+        // winner.
+        promises.push(rcwallet1.createBid({
+          name: NAMES[i],
+          bid: HARD_FEE,
+          lockup: HARD_FEE,
+          passphrase: PASSPHRASE1,
+          hardFee: HARD_FEE
+        }));
+
+        // We want redeemer to not have enough funds
+        // to redeem the money back and has to use
+        // extra funds for it.
+        //
+        // ALSO We want to have enough redeems to
+        // do redeemAll and redeem.
+        for (let j = 0; j < 2; j++) {
+          promises.push(rcwallet2.createBid({
+            name: NAMES[i],
+            bid: HARD_FEE - 1,
+            lockup: HARD_FEE - 1,
+            passphrase: PASSPHRASE2,
+            hardFee: HARD_FEE
+          }));
+        }
+      }
+
+      const results = await Promise.all(promises);
+      const txs = results.map(result => MTX.fromHex(result.hex));
+      checkDoubleSpends(txs);
+
+      await forMemTX;
+
+      await wMineBlocks(1);
+      const balance1 = await rcwallet1.getBalance();
+      const balance2 = await rcwallet2.getBalance();
+
+      // 3 opens and 3 bids (nothing extra)
+      assert.strictEqual(balance1.coin, 6);
+      assert.strictEqual(balance1.confirmed, HARD_FEE * 3);
+
+      // 3 bids (nothing extra)
+      assert.strictEqual(balance2.coin, 6);
+      assert.strictEqual(balance2.confirmed, (HARD_FEE - 1) * 6);
+    });
+
+    it('should reveal 3 times and reveal all', async () => {
+      // Now we don't have fees to reveal. Fund these fees.
+      fundNcoins(rcwallet1, 3, HARD_FEE);
+      fundNcoins(rcwallet2, 1, HARD_FEE);
+
+      const promises = [];
+
+      await wMineBlocks(network.names.biddingPeriod);
+
+      const forMemTX = common.forEvent(node.mempool, 'tx', 4);
+
+      for (let i = 0; i < 3; i++) {
+        promises.push(rcwallet1.createReveal({
+          name: NAMES[i],
+          passphrase: PASSPHRASE1,
+          hardFee: HARD_FEE
+        }));
+      }
+
+      // do reveal all
+      promises.push(rcwallet2.createReveal({
+        passphrase: PASSPHRASE2,
+        hardFee: HARD_FEE
+      }));
+
+      const results = await Promise.all(promises);
+      const txs = results.map(r => MTX.fromHex(r.hex));
+      checkDoubleSpends(txs);
+      await forMemTX;
+
+      await wMineBlocks(1);
+
+      const balance1 = await rcwallet1.getBalance();
+
+      // 3 opens and 3 reveals
+      assert.strictEqual(balance1.coin, 6);
+      assert.strictEqual(balance1.confirmed, HARD_FEE * 3);
+
+      const balance2 = await rcwallet2.getBalance();
+
+      // 6 reveals
+      assert.strictEqual(balance2.coin, 6);
+      assert.strictEqual(balance2.confirmed, (HARD_FEE - 1) * 6);
+      await wMineBlocks(network.names.revealPeriod);
+    });
+
+    it('should register 3 times', async () => {
+      const promises = [];
+
+      await fundNcoins(rcwallet1, 3, HARD_FEE);
+
+      const forMemTX = common.forEvent(node.mempool, 'tx', 3);
+
+      // We don't have funds to fund anything.
+      for (let i = 0; i < 3; i++) {
+        promises.push(rcwallet1.createUpdate({
+          name: NAMES[i],
+          passphrase: PASSPHRASE1,
+          hardFee: HARD_FEE,
+          data: {
+            records: [
+              {
+                type: 'TXT',
+                txt: ['foobar']
+              }
+            ]
+          }
+        }));
+      }
+
+      const results = await Promise.all(promises);
+      const txs = results.map(r => MTX.fromHex(r.hex));
+      checkDoubleSpends(txs);
+      await forMemTX;
+
+      await wMineBlocks(1);
+    });
+
+    it('should redeem 3 times and redeem all', async () => {
+      const promises = [];
+
+      await fundNcoins(rcwallet2, 3, HARD_FEE);
+
+      const forMemTX = common.forEvent(node.mempool, 'tx', 3);
+
+      for (let i = 0; i < 2; i++) {
+        promises.push(rcwallet2.createRedeem({
+          name: NAMES[i],
+          passphrase: PASSPHRASE2,
+          hardFee: HARD_FEE
+        }));
+      }
+
+      promises.push(rcwallet2.createRedeem({
+        hardFee: HARD_FEE
+      }));
+
+      const results = await Promise.all(promises);
+      const txs = results.map(r => MTX.fromHex(r.hex));
+      checkDoubleSpends(txs);
+      await forMemTX;
+    });
+
+    it('should renew 3 names', async () => {
+      const promises = [];
+
+      await wMineBlocks(network.names.treeInterval);
+      await fundNcoins(rcwallet1, 3, HARD_FEE);
+
+      const forMemTX = common.forEvent(node.mempool, 'tx', 3);
+
+      for (let i = 0; i < 3; i++) {
+        promises.push(rcwallet1.createRenewal({
+          name: NAMES[i],
+          passphrase: PASSPHRASE1,
+          hardFee: HARD_FEE
+        }));
+      }
+
+      const results = await Promise.all(promises);
+      const txs = results.map(r => MTX.fromHex(r.hex));
+      checkDoubleSpends(txs);
+      await forMemTX;
+
+      await wMineBlocks(1);
+    });
+
+    it('should transfer 3 names', async () => {
+      const promises = [];
+
+      await fundNcoins(rcwallet1, 3, HARD_FEE);
+
+      const forMemTX = common.forEvent(node.mempool, 'tx', 3);
+
+      const addrs = [
+        (await rcwallet2.createAddress('default')).address,
+        (await rcwallet2.createAddress('default')).address,
+        (await rcwallet2.createAddress('default')).address
+      ];
+
+      for (let i = 0; i < 3; i++) {
+        promises.push(rcwallet1.createTransfer({
+          name: NAMES[i],
+          address: addrs[i],
+          passphrase: PASSPHRASE1,
+          hardFee: HARD_FEE
+        }));
+      }
+
+      const results = await Promise.all(promises);
+      const txs = results.map(r => MTX.fromHex(r.hex));
+      checkDoubleSpends(txs);
+      await forMemTX;
+      await wMineBlocks(1);
+    });
+
+    it('should cancel 3 names', async () => {
+      const promises = [];
+
+      await fundNcoins(rcwallet1, 3, HARD_FEE);
+
+      const forMemTX = common.forEvent(node.mempool, 'tx', 3);
+
+      for (let i = 0; i < 3; i++) {
+        promises.push(rcwallet1.createCancel({
+          name: NAMES[i],
+          passphrase: PASSPHRASE1,
+          hardFee: HARD_FEE
+        }));
+      }
+
+      const results = await Promise.all(promises);
+      const txs = results.map(r => MTX.fromHex(r.hex));
+      checkDoubleSpends(txs);
+      await forMemTX;
+      await wMineBlocks(1);
+    });
+
+    it('should finalize 3 names', async () => {
+      await fundNcoins(rcwallet1, 6, HARD_FEE);
+
+      let forMemTX = common.forEvent(node.mempool, 'tx', 3);
+
+      const addrs = [
+        (await rcwallet2.createAddress('default')).address,
+        (await rcwallet2.createAddress('default')).address,
+        (await rcwallet2.createAddress('default')).address
+      ];
+
+      for (let i = 0; i < 3; i++) {
+        await rcwallet1.createTransfer({
+          name: NAMES[i],
+          address: addrs[i],
+          passphrase: PASSPHRASE1,
+          hardFee: HARD_FEE
+        });
+      }
+
+      await forMemTX;
+      await wMineBlocks(network.names.transferLockup);
+
+      // Now we finalize all.
+      const promises = [];
+
+      forMemTX = common.forEvent(node.mempool, 'tx', 3);
+
+      for (let i = 0; i < 3; i++) {
+        promises.push(rcwallet1.createFinalize({
+          name: NAMES[i],
+          passphrase: PASSPHRASE1,
+          hardFee: HARD_FEE
+        }));
+      }
+
+      const results = await Promise.all(promises);
+      const txs = results.map(r => MTX.fromHex(r.hex));
+      checkDoubleSpends(txs);
+      await forMemTX;
+
+      await wMineBlocks(1);
+    });
+
+    it('should revoke 3 names', async () => {
+      // send them back
+      await fundNcoins(rcwallet2, 6, HARD_FEE);
+
+      let forMemTX = common.forEvent(node.mempool, 'tx', 3);
+
+      const addrs = [
+        (await rcwallet1.createAddress('default')).address,
+        (await rcwallet1.createAddress('default')).address,
+        (await rcwallet1.createAddress('default')).address
+      ];
+
+      for (let i = 0; i < 3; i++) {
+        await rcwallet2.createTransfer({
+          name: NAMES[i],
+          address: addrs[i],
+          passphrase: PASSPHRASE2,
+          hardFee: HARD_FEE
+        });
+      }
+
+      await forMemTX;
+      await wMineBlocks(network.names.transferLockup);
+
+      forMemTX = common.forEvent(node.mempool, 'tx', 3);
+      const promises = [];
+
+      for (let i = 0; i < 3; i++) {
+        promises.push(rcwallet2.createRevoke({
+          name: NAMES[i],
+          passphrase: PASSPHRASE2,
+          hardFee: HARD_FEE
+        }));
+      }
+
+      const results = await Promise.all(promises);
+      const txs = results.map(r => MTX.fromHex(r.hex));
+      checkDoubleSpends(txs);
+      await forMemTX;
+    });
   });
 });
 
