@@ -64,6 +64,10 @@ describe('Wallet Auction', function() {
       await wdb.removeBlock(entry);
     });
 
+    wdb.getNameStatus = async (nameHash) => {
+      return chain.db.getNameStatus(nameHash, chain.height + 1);
+    };
+
     // Generate blocks to roll out name and fund wallet
     let winnerAddr = await wallet.createReceive();
     winnerAddr = winnerAddr.getAddress().toString(network);
