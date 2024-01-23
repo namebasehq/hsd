@@ -472,7 +472,6 @@ describe('Wallet Auction', function() {
     it('should fail to BID auction during alexaLockupPeriod', async () => {
       // Claim period has ended, now they are locked up.
       network.names.claimPeriod = TMP_CLAIM;
-      network.names.alexaLockupPeriod = 10000;
 
       const badNames = [
         ...rootNames,

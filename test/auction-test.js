@@ -817,4 +817,153 @@ describe('Auction', function() {
       await chain.close();
     });
   });
+
+  describe('ICANNLOCKUP', function() {
+    const BAK_CLAIM_PERIOD = network.names.claimPeriod;
+    const BAK_ALEXA_PERIOD = network.names.alexaLockupPeriod;
+    const TMP_CLAIM = 10;
+    const TMP_ALEXA = 20;
+
+    const rootNames = ['com', 'org', 'net'];
+    const alexaNames = ['6pm', 'gnu', 'tor'];
+
+    const node = createNode();
+    const {chain, miner, cpu} = node;
+
+    const wallet = node.wallet();
+
+    before(() => {
+      network.names.noRollout = true;
+    });
+
+    afterEach(() => {
+      network.names.claimPeriod = BAK_CLAIM_PERIOD;
+      network.names.alexaLockupPeriod = BAK_ALEXA_PERIOD;
+    });
+
+    after(() => {
+      network.names.noRollout = false;
+      network.names.noReserved = false;
+    });
+
+    it('should open chain and miner', async () => {
+      await chain.open();
+      await miner.open();
+
+      miner.addresses.length = 0;
+      miner.addAddress(wallet.getReceive());
+    });
+
+    it('should mine 20 blocks', async () => {
+      for (let i = 0; i < 20; i++) {
+        const block = await cpu.mineBlock();
+        assert(block);
+        assert(await chain.add(block));
+      }
+    });
+
+    it('should fail to mine OPEN before ICANNLOCKUP', async () => {
+      const badNames = [
+        ...rootNames,
+        ...alexaNames
+      ];
+
+      for (const name of badNames) {
+        // Trick wallet into creating mtx.
+        network.names.noReserved = true;
+        const mtx = await wallet.createOpen(name);
+        network.names.noReserved = false;
+
+        const job = await cpu.createJob();
+        job.addTX(mtx.toTX(), mtx.view);
+        job.refresh();
+
+        const block = await job.mineAsync();
+
+        let err = null;
+
+        try {
+          await chain.add(block);
+        } catch (e) {
+          err = e;
+        }
+
+        assert(err);
+        assert.strictEqual(err.reason, 'bad-open-reserved');
+      }
+    });
+
+    it('should fail to OPEN auction during alexaLockupPeriod', async () => {
+      network.names.claimPeriod = TMP_CLAIM;
+
+      const badNames = [
+        ...rootNames,
+        ...alexaNames
+      ];
+
+      for (const name of badNames) {
+        const mtx = await wallet.createOpen(name);
+
+        const job = await cpu.createJob();
+        job.addTX(mtx.toTX(), mtx.view);
+        job.refresh();
+
+        const block = await job.mineAsync();
+
+        let err = null;
+
+        try {
+          await chain.add(block);
+        } catch (e) {
+          err = e;
+        }
+
+        assert(err);
+        assert.strictEqual(err.reason, 'bad-open-lockedup');
+      }
+    });
+
+    it('should fail to OPEN root even after alexaLockupPeriod', async () => {
+      network.names.claimPeriod = TMP_CLAIM;
+      network.names.alexaLockupPeriod = TMP_ALEXA;
+
+      for (const name of rootNames) {
+        const mtx = await wallet.createOpen(name);
+
+        const job = await cpu.createJob();
+        job.addTX(mtx.toTX(), mtx.view);
+        job.refresh();
+
+        const block = await job.mineAsync();
+
+        let err = null;
+
+        try {
+          await chain.add(block);
+        } catch (e) {
+          err = e;
+        }
+
+        assert(err);
+        assert.strictEqual(err.reason, 'bad-open-lockedup');
+      }
+    });
+
+    it('should open alexa names after alexaLockupPeriod', async () => {
+      network.names.claimPeriod = TMP_CLAIM;
+      network.names.alexaLockupPeriod = TMP_ALEXA;
+
+      for (const name of alexaNames) {
+        const mtx = await wallet.createOpen(name);
+
+        const job = await cpu.createJob();
+        job.addTX(mtx.toTX(), mtx.view);
+        job.refresh();
+
+        const block = await job.mineAsync();
+        const entry = await chain.add(block);
+        assert(entry);
+      }
+    });
+  });
 });

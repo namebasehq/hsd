@@ -1422,4 +1422,196 @@ describe('Mempool', function() {
       }
     });
   });
+
+  describe('Mempool ICANNLOCKUP', function () {
+    const BAK_CLAIM_PERIOD = network.names.claimPeriod;
+    const BAK_ALEXA_PERIOD = network.names.alexaLockupPeriod;
+    const TMP_CLAIM = 10;
+    const TMP_ALEXA = 20;
+
+    const rootNames = ['com', 'org', 'net'];
+    const alexaNames = ['6pm', 'gnu', 'tor'];
+
+    const workers = new WorkerPool({
+      enabled: true,
+      size: 2
+    });
+
+    const chain = new Chain({
+      memory: true,
+      workers,
+      network
+    });
+
+    const mempool = new Mempool({
+      chain,
+      workers,
+      memory: true
+    });
+
+    const wallet = new MemWallet({ network });
+
+    before(async () => {
+      network.names.noRollout = true;
+
+      await workers.open();
+      await chain.open();
+      await mempool.open();
+    });
+
+    afterEach(() => {
+      network.names.claimPeriod = BAK_CLAIM_PERIOD;
+      network.names.alexaLockupPeriod = BAK_ALEXA_PERIOD;
+    });
+
+    after(async () => {
+      network.names.noRollout = false;
+      network.names.noReserved = false;
+
+      await mempool.close();
+      await chain.close();
+      await workers.close();
+    });
+
+    async function getMockBlock(chain, txs = [], cb = true) {
+      if (cb) {
+        const raddr = KeyRing.generate().getAddress();
+        const mtx = new MTX();
+        mtx.addInput(new Input());
+        mtx.addOutput(raddr, 0);
+        mtx.locktime = chain.height + 1;
+
+        txs = [mtx.toTX(), ...txs];
+      }
+
+      const view = new CoinView();
+      for (const tx of txs) {
+        view.addTX(tx, -1);
+      }
+
+      const now = Math.floor(Date.now() / 1000);
+      const time = chain.tip.time <= now ? chain.tip.time + 1 : now;
+
+      const block = new Block();
+      block.txs = txs;
+      block.prevBlock = chain.tip.hash;
+      block.time = time;
+      block.bits = await chain.getTarget(block.time, chain.tip);
+
+      // Ensure mockblocks are unique (required for reorg testing)
+      block.merkleRoot = block.createMerkleRoot();
+      block.witnessRoot = block.createWitnessRoot();
+      block.treeRoot = chain.db.treeRoot();
+
+      return [block, view];
+    }
+
+    it('should fund wallet in chain', async () => {
+      const mtx = new MTX();
+      mtx.locktime = chain.height + 1;
+      mtx.addInput(new Input());
+
+      for (let i = 0; i < 10; i++) {
+        const addr = wallet.createReceive().getAddress();
+        mtx.addOutput(addr, 100000);
+      }
+
+      const cb = mtx.toTX();
+      const [block, view] = await getMockBlock(chain, [cb], false);
+      const entry = await chain.add(block, VERIFY_BODY);
+
+      await mempool.addBlock(entry, block.txs, view);
+      wallet.addBlock(entry, block.txs);
+
+      for (let i = 0; i < 25; i++) {
+        const [block, view] = await getMockBlock(chain);
+        const entry = await chain.add(block, VERIFY_BODY);
+
+        await mempool.addBlock(entry, block.txs, view);
+        wallet.addBlock(entry, block.txs);
+      }
+
+      wallet.addTX(cb);
+    });
+
+    it('should fail to add OPEN before ICANNLOCKUP', async () => {
+      const badNames = [
+        ...rootNames,
+        ...alexaNames
+      ];
+
+      for (const name of badNames) {
+        // Trick wallet into creating mtx.
+        network.names.noReserved = true;
+        const mtx = await wallet.createOpen(name);
+        network.names.noReserved = false;
+
+        let err;
+        try {
+          await mempool.addTX(mtx.toTX());
+        } catch (e) {
+          err = e;
+        }
+
+        assert(err);
+        assert.strictEqual(err.reason, 'invalid-covenant');
+      }
+    });
+
+    it('should fail to add OPEN during alexaLockupPeriod', async () => {
+      network.names.claimPeriod = TMP_CLAIM;
+
+      const badNames = [
+        ...rootNames,
+        ...alexaNames
+      ];
+
+      for (const name of badNames) {
+        const mtx = await wallet.createOpen(name);
+
+        let err;
+        try {
+          await mempool.addTX(mtx.toTX());
+        } catch (e) {
+          err = e;
+        }
+
+        assert(err);
+        assert.strictEqual(err.reason, 'invalid-covenant');
+      }
+    });
+
+    it('should fail to add OPEN for root even after alexaLockupPeriod', async () => {
+      network.names.claimPeriod = TMP_CLAIM;
+      network.names.alexaLockupPeriod = TMP_ALEXA;
+
+      for (const name of rootNames) {
+        const mtx = await wallet.createOpen(name);
+
+        let err;
+        try {
+          await mempool.addTX(mtx.toTX());
+        } catch (e) {
+          err = e;
+        }
+
+        assert(err);
+        assert.strictEqual(err.reason, 'invalid-covenant');
+      }
+    });
+
+    it('should allow to add OPEN for alexa names after alexaLockupPeriod', async () => {
+      network.names.claimPeriod = TMP_CLAIM;
+      network.names.alexaLockupPeriod = TMP_ALEXA;
+
+      for (const name of alexaNames) {
+        const mtx = await wallet.createOpen(name);
+        const tx = mtx.toTX();
+        await mempool.addTX(mtx.toTX());
+        wallet.addTX(tx);
+      }
+
+      assert(mempool.map.size, alexaNames.length);
+    });
+  });
 });
