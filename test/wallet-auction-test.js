@@ -346,4 +346,185 @@ describe('Wallet Auction', function() {
       assert.notStrictEqual(secondTX, null);
     });
   });
+
+  describe('Wallet ICANNLOCKUP', function() {
+    const BAK_CLAIM_PERIOD = network.names.claimPeriod;
+    const BAK_ALEXA_PERIOD = network.names.alexaLockupPeriod;
+    const TMP_CLAIM = 10;
+    const TMP_ALEXA = 20;
+
+    const rootNames = ['com', 'org', 'net'];
+    const alexaNames = ['6pm', 'gnu', 'tor'];
+
+    before(async () => {
+      network.names.noRollout = true;
+
+      const receive = await wallet.createReceive();
+      const addr = receive.getAddress().toString(network);
+      for (let i = 0; i < 30; i++) {
+        const block = await cpu.mineBlock(null, addr);
+        await chain.add(block);
+      }
+    });
+
+    afterEach(() => {
+      network.names.claimPeriod = BAK_CLAIM_PERIOD;
+      network.names.alexaLockupPeriod = BAK_ALEXA_PERIOD;
+    });
+
+    after(() => {
+      network.names.noRollout = false;
+    });
+
+    it('should fail to OPEN before ICANNLOCKUP', async () => {
+      network.names.claimPeriod = 1000;
+      network.names.alexaLockupPeriod = 2000;
+
+      const badNames = [
+        ...rootNames,
+        ...alexaNames
+      ];
+
+      for (const badName of badNames) {
+        let err;
+        try {
+          await wallet.createOpen(badName, false);
+        } catch (e) {
+          err = e;
+        }
+
+        assert(err);
+        assert.strictEqual(err.message, 'Name is reserved');
+      }
+    });
+
+    it('should fail to OPEN auction during alexaLockupPeriod', async () => {
+      // Claim period has ended, now they are locked up.
+      network.names.claimPeriod = TMP_CLAIM;
+      network.names.alexaLockupPeriod = 2000;
+      const badNames = [
+        ...rootNames,
+        ...alexaNames
+      ];
+
+      for (const badName of badNames) {
+        let err;
+        try {
+          await wallet.createOpen(badName, false);
+        } catch (e) {
+          err = e;
+        }
+
+        assert(err);
+        assert.strictEqual(err.message, 'Name is locked up');
+      }
+    });
+
+    it('should fail to OPEN root auction even after alexaLockupPeriod', async () => {
+      network.names.claimPeriod = TMP_CLAIM;
+      network.names.alexaLockupPeriod = TMP_ALEXA;
+
+      for (const rootName of rootNames) {
+        let err;
+        try {
+          await wallet.createOpen(rootName, false);
+        } catch (e) {
+          err = e;
+        }
+
+        assert(err);
+        assert.strictEqual(err.message, 'Name is locked up');
+      }
+    });
+
+    it('should OPEN alexa names after alexa lockup period', async () => {
+      network.names.claimPeriod = TMP_CLAIM;
+      network.names.alexaLockupPeriod = TMP_ALEXA;
+
+      for (const alexaName of alexaNames) {
+        const open = await wallet.createOpen(alexaName, false);
+        await wallet.sign(open);
+      }
+    });
+
+    it('should fail to BID before ICANNLOCKUP', async () => {
+      network.names.claimPeriod = 1000;
+      network.names.alexaLockupPeriod = 2000;
+
+      const badNames = [
+        ...rootNames,
+        ...alexaNames
+      ];
+
+      for (const badName of badNames) {
+        let err;
+        try {
+          await wallet.createBid(badName, 1e6, 1e6);
+        } catch (e) {
+          err = e;
+        }
+
+        assert(err);
+        assert.strictEqual(err.message, `Name is reserved: "${badName}".`);
+      }
+    });
+
+    it('should fail to BID auction during alexaLockupPeriod', async () => {
+      // Claim period has ended, now they are locked up.
+      network.names.claimPeriod = TMP_CLAIM;
+      network.names.alexaLockupPeriod = 10000;
+
+      const badNames = [
+        ...rootNames,
+        ...alexaNames
+      ];
+
+      for (const badName of badNames) {
+        let err;
+        try {
+          await wallet.createBid(badName, 1e6, 1e6);
+        } catch (e) {
+          err = e;
+        }
+
+        assert(err);
+        assert.strictEqual(err.message, `Name is locked up: "${badName}"`);
+      }
+    });
+
+    it('should fail to open root auction even after alexaLockupPeriod', async () => {
+      network.names.claimPeriod = TMP_CLAIM;
+      network.names.alexaLockupPeriod = TMP_ALEXA;
+
+      for (const rootName of rootNames) {
+        let err;
+        try {
+          await wallet.createBid(rootName, 1e6, 1e6);
+        } catch (e) {
+          err = e;
+        }
+
+        assert(err);
+        assert.strictEqual(err.message, `Name is locked up: "${rootName}"`);
+      }
+    });
+
+    it('should allow BID on alexa names after alexa lockup period', async () => {
+      network.names.claimPeriod = TMP_CLAIM;
+      network.names.alexaLockupPeriod = TMP_ALEXA;
+
+      for (const alexaName of alexaNames) {
+        let err;
+        try {
+          await wallet.createBid(alexaName, 1e6, 1e6);
+        } catch (e) {
+          err = e;
+        }
+
+        assert(err);
+        assert.strictEqual(err.message,
+          `Name has not reached the bidding phase yet: "${alexaName}".`);
+      }
+    });
+  });
 });
