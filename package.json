@@ -76,6 +76,7 @@
   },
   "browser": {
     "./lib/covenants/reserved": "./lib/covenants/reserved-browser.js",
+    "./lib/covenants/locked": "./lib/covenants/locked-browser.js",
     "./lib/dns/icann": "./lib/dns/icann-browser.js",
     "./lib/hd/nfkd": "./lib/hd/nfkd-compat.js",
     "./lib/hd/wordlist": "./lib/hd/wordlist-browser.js",
