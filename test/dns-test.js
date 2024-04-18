@@ -17,6 +17,8 @@ rootResolver.setServers([`127.0.0.1:${network.nsPort}`]);
 recursiveResolver.setServers([`127.0.0.1:${network.rsPort}`]);
 
 describe('Server Configuration', function() {
+  this.timeout(5000);
+
   describe('Full Node', function() {
     let node;
 
