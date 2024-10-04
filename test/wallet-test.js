@@ -2043,7 +2043,7 @@ describe('Wallet', function() {
     });
 
     it('should send and confirm OPEN', async () => {
-      const open = await wallet.sendOpen(name, false, { hardFee: fee });
+      const open = await wallet.sendOpen(name, { hardFee: fee });
       uTXCount++;
 
       // Check
@@ -2409,7 +2409,7 @@ describe('Wallet', function() {
     });
 
     it('should confirm new OPEN', async () => {
-      const open = await wallet.createOpen(name, false, { hardFee: fee });
+      const open = await wallet.createOpen(name, { hardFee: fee });
 
       // Check
       let bal = await wallet.getBalance();
@@ -3001,7 +3001,7 @@ describe('Wallet', function() {
     });
 
     it('should send and confirm OPEN', async () => {
-      const open = await wallet.sendOpen(name, false, { hardFee: fee });
+      const open = await wallet.sendOpen(name, { hardFee: fee });
       uTXCount++;
 
       // Check

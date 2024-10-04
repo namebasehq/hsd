@@ -49,7 +49,7 @@ describe('Mempool Covenant Reorg', function () {
   it('should fund wallet and win name', async () => {
     await node.rpc.generate([10]);
     name = await node.rpc.grindName([3]);
-    await wallet.sendOpen(name, true);
+    await wallet.sendOpen(name);
     await node.rpc.generate([treeInterval + 1]);
     await wallet.sendBid(name, 10000, 20000);
     await node.rpc.generate([biddingPeriod]);

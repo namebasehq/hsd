@@ -87,8 +87,8 @@ describe('Wallet Import Name', function() {
     const ns2 = await bob.getNameStateByName(name);
     assert(ns2 === null);
 
-    await alice.sendOpen(name, false);
-    await alice.sendOpen(wrongName, false);
+    await alice.sendOpen(name);
+    await alice.sendOpen(wrongName);
 
     await mineBlocks(network.names.treeInterval);
     await wdb.rescan(0);

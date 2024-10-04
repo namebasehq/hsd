@@ -99,7 +99,7 @@ describe('Wallet Auction', function() {
 
     it('should open auction', async () => {
       for (let i = 0; i < OPENS1; i++) {
-        const open = await wallet.createOpen(NAME1, false);
+        const open = await wallet.createOpen(NAME1);
         await wallet.sign(open);
 
         assert.strictEqual(open.inputs.length, 1);
@@ -124,7 +124,7 @@ describe('Wallet Auction', function() {
     it('should fail to create duplicate open', async () => {
       let err;
       try {
-        await wallet.createOpen(NAME1, false);
+        await wallet.createOpen(NAME1);
       } catch (e) {
         err = e;
       }
@@ -174,7 +174,7 @@ describe('Wallet Auction', function() {
     it('should fail to re-open auction during OPEN phase', async () => {
       let err;
       try {
-        await wallet.createOpen(NAME1, false);
+        await wallet.createOpen(NAME1);
       } catch (e) {
         err = e;
       }
@@ -205,7 +205,7 @@ describe('Wallet Auction', function() {
     it('should fail to re-open auction during BIDDING phase', async () => {
       let err;
       try {
-        await wallet.createOpen(NAME1, false);
+        await wallet.createOpen(NAME1);
       } catch (e) {
         err = e;
       }
@@ -232,7 +232,7 @@ describe('Wallet Auction', function() {
     it('should fail to create duplicate open (again)', async () => {
       let err;
       try {
-        await wallet.createOpen(NAME1, false);
+        await wallet.createOpen(NAME1);
       } catch (e) {
         err = e;
       }
@@ -668,7 +668,7 @@ describe('Wallet Auction', function() {
       for (const badName of badNames) {
         let err;
         try {
-          await wallet.createOpen(badName, false);
+          await wallet.createOpen(badName);
         } catch (e) {
           err = e;
         }
@@ -690,7 +690,7 @@ describe('Wallet Auction', function() {
       for (const badName of badNames) {
         let err;
         try {
-          await wallet.createOpen(badName, false);
+          await wallet.createOpen(badName);
         } catch (e) {
           err = e;
         }
@@ -707,7 +707,7 @@ describe('Wallet Auction', function() {
       for (const rootName of rootNames) {
         let err;
         try {
-          await wallet.createOpen(rootName, false);
+          await wallet.createOpen(rootName);
         } catch (e) {
           err = e;
         }
@@ -722,7 +722,7 @@ describe('Wallet Auction', function() {
       network.names.alexaLockupPeriod = TMP_ALEXA;
 
       for (const alexaName of alexaNames) {
-        const open = await wallet.createOpen(alexaName, false);
+        const open = await wallet.createOpen(alexaName);
         await wallet.sign(open);
       }
     });

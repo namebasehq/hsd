@@ -110,7 +110,7 @@ describe('Wallet rescan with namestate transitions', function() {
     it('should run auction', async () => {
       // Poor Bob, all he does is send an OPEN but his wallet will
       // watch all the other activity including TRANSFERS for this name
-      await bob.sendOpen(NAME, true);
+      await bob.sendOpen(NAME);
       // Scatter unrelated TXs throughout the test.
       // This will ensure that txdb.removeBlock() removes TXs
       // in the reverse order from when they were added
