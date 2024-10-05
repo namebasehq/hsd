@@ -13,10 +13,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Setup
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: 18.x
 
@@ -34,20 +34,28 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        node: [12.x, 14.x, 16.x, 18.x]
+        include:
+          - os: ubuntu-20.04
+            node-version: 12.x
+          - os: ubuntu-20.04
+            node-version: 14.x
+          - os: ubuntu-latest
+            node-version: 16.x
+          - os: ubuntu-latest
+            node-version: 18.x
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node }}
 
     - name: Install libunbound
-      if: contains(matrix.os, 'ubuntu')
-      run: sudo apt-get update && sudo apt-get install -y libunbound-dev
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libunbound-dev
 
     - name: Install dependencies
       run: npm install
