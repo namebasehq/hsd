@@ -10,7 +10,7 @@
 
 'use strict';
 
-const { NodeClient, WalletClient } = require('namebase-hs-client');
+const { NodeClient, WalletClient } = require('@namebasehq/hs-client');
 const Network = require('../lib/protocol/network');
 const FullNode = require('../lib/node/fullnode');
 const MTX = require('../lib/primitives/mtx');
