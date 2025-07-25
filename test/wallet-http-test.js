@@ -263,6 +263,122 @@ describe('Wallet HTTP', function() {
       assert.equal(0, key.branch);
       assert.equal(0, key.index);
     });
+
+    it('should get new receive address (increments depth)', async () => {
+      const acct = await wallet.getAccount('default');
+      const recvDepth = acct.receiveDepth;
+
+      const addr = await wallet.createAddress('default');
+      assert.strictEqual(addr.index, recvDepth);
+
+      const addr2 = await wallet.createAddress('default');
+      assert.strictEqual(addr2.index, recvDepth + 1);
+
+      {
+        const acct = await wallet.getAccount('default');
+        const newRecvDepth = acct.receiveDepth;
+        assert.strictEqual(newRecvDepth, recvDepth + 2);
+      }
+    });
+
+    it('should get new change address (increments depth)', async () => {
+      const acct = await wallet.getAccount('default');
+      const changeDepth = acct.changeDepth;
+
+      const addr = await wallet.createChange('default');
+      assert.strictEqual(addr.index, changeDepth);
+
+      const addr2 = await wallet.createChange('default');
+      assert.strictEqual(addr2.index, changeDepth + 1);
+
+      {
+        const acct = await wallet.getAccount('default');
+        const newRecvDepth = acct.changeDepth;
+        assert.strictEqual(newRecvDepth, changeDepth + 2);
+      }
+    });
+
+    it('should get receive address w/o incrementing', async () => {
+      const account = await wallet.getAccount('default');
+      const lastRecv = await wallet.createAddress('default');
+
+      {
+        const addr = await wallet.getAddress('default', account.receiveDepth - 1);
+        assert.strictEqual(addr.address, account.receiveAddress);
+      }
+
+      {
+        const addr = await wallet.getAddress('default', account.receiveDepth);
+        assert.strictEqual(addr.address, lastRecv.address);
+      }
+
+      {
+        const addr = await wallet.getAddress('default', account.receiveDepth + 1);
+        assert.strictEqual(addr.index, account.receiveDepth + 1);
+      }
+
+      {
+        const addr = await wallet.getAddress('default',
+          account.receiveDepth + account.lookahead, true);
+        assert.strictEqual(addr.index, account.receiveDepth + account.lookahead);
+      }
+
+      {
+        const account = await wallet.getAccount('default');
+
+        let err = null;
+        try {
+          await wallet.getAddress('default',
+            account.receiveDepth + account.lookahead + 1, true);
+        } catch (e) {
+          err = e;
+        }
+
+        assert(err);
+        assert.strictEqual(err.message, 'Receive index out of bounds.');
+      }
+    });
+
+    it('should get change address w/o incrementing', async () => {
+      const account = await wallet.getAccount('default');
+      const lastChange = await wallet.createChange('default');
+
+      {
+        const addr = await wallet.getChange('default', account.changeDepth - 1);
+        assert.strictEqual(addr.address, account.changeAddress);
+      }
+
+      {
+        const addr = await wallet.getChange('default', account.changeDepth);
+        assert.strictEqual(addr.address, lastChange.address);
+      }
+
+      {
+        const addr = await wallet.getChange('default', account.changeDepth + 1);
+        assert.strictEqual(addr.index, account.changeDepth + 1);
+      }
+
+      {
+        const addr = await wallet.getChange('default',
+          account.changeDepth + account.lookahead, true);
+        assert.strictEqual(addr.index, account.changeDepth + account.lookahead);
+      }
+
+      {
+        const account = await wallet.getAccount('default');
+
+        let err = null;
+        try {
+          await wallet.getChange('default',
+            account.changeDepth + account.lookahead + 1, true);
+        } catch (e) {
+          err = e;
+        }
+
+        assert(err);
+        assert.strictEqual(err.message, 'Change index out of bounds.');
+      }
+    });
   });
 
   describe('Mine/Fund', function() {
