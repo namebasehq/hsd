@@ -693,6 +693,57 @@ describe('Wallet HTTP', function() {
       }
     });
 
+    it('should check fund lock status', async () => {
+      const {address} = await wallet.createChange('default');
+      const output = { address, value: 1e6 };
+
+      const prePending = await wallet.getPending();
+
+      for (const [delayMethodName, errorMessage] of Object.entries(delayMethod2error)) {
+        delayMethodOnce(nodeCtx.wdb.primary, delayMethodName, TIMEOUT_METHOD);
+
+        let wnodeError = null;
+        nodeCtx.wnode.once('error', e => wnodeError = e);
+
+        let checkLockTime;
+        let err;
+
+        try {
+          const sending = wallet.send({
+            timeout: TIMEOUT_OPT,
+            abortOnClose: true,
+            outputs: [output]
+          });
+
+          checkLockTime = (async () => {
+            const startTime = performance.now();
+            await wclient.get('/wallet/primary/checklock');
+            return performance.now() - startTime;
+          })();
+
+          await sending;
+        } catch (e) {
+          err = e;
+        }
+
+        assert.ok(err);
+        assert.strictEqual(err.message, errorMessage(TIMEOUT_TRIGGERED));
+        await sleep(TIMEOUT_FULL);
+
+        assert(wnodeError);
+        assert.strictEqual(wnodeError.message, errorMessage(TIMEOUT_TRIGGERED));
+        assert.strictEqual(wnodeError.name, 'AbortError');
+        assert.strictEqual(wnodeError.cause.message, TIMEOUT_TRIGGERED);
+
+        const lockTime = await checkLockTime;
+        assert(lockTime > TIMEOUT_METHOD && lockTime < TIMEOUT_FULL
+          , 'locktime timeout');
+
+        const pending = await wallet.getPending();
+        assert.strictEqual(pending.length - prePending.length, 0);
+      }
+    });
+
     it('should mine to the secondary/default wallet', async () => {
       const height = 5;
 
