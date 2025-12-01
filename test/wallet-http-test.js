@@ -21,6 +21,7 @@ const NodeContext = require('./util/node-context');
 const common = require('./util/common');
 const {forEvent, sleep, delayMethodOnce} = common;
 const {generateInitialBlocks} = require('./util/pagination');
+const feat = require('../lib/features');
 
 const {
   treeInterval,
@@ -46,6 +47,7 @@ const delayMethod2error = {
 
 const CLIENT_CLOSED = 'Client closed connection.';
 const TIMEOUT_TRIGGERED = 'Timed out.';
+const RECEIVED_A_NEW_BLOCK = 'Received a new block.';
 
 describe('Wallet HTTP', function() {
   this.timeout(20000);
@@ -56,6 +58,8 @@ describe('Wallet HTTP', function() {
 
   // primary wallet client.
   let wallet, cbAddress;
+
+  let BAK_FEAT_ABORT = feat.FEAT_ABORT_ON_BLOCK;
 
   const beforeAll = async () => {
     nodeCtx = new NodeContext({
@@ -72,9 +76,13 @@ describe('Wallet HTTP', function() {
 
     wallet = nodeCtx.wclient.wallet('primary');
     cbAddress = (await wallet.createAddress('default')).address;
+
+    BAK_FEAT_ABORT = feat.FEAT_ABORT_ON_BLOCK;
+    feat.FEAT_ABORT_ON_BLOCK = true;
   };
 
   const afterAll = async () => {
+    feat.FEAT_ABORT_ON_BLOCK = BAK_FEAT_ABORT;
     await nodeCtx.close();
   };
 
@@ -693,6 +701,48 @@ describe('Wallet HTTP', function() {
       }
     });
 
+    it('should abort tx a on new block', async () => {
+      if (!feat.FEAT_ABORT_ON_BLOCK)
+        this.skip();
+
+      const {address} = await wallet.createChange('default');
+      const output = { address, value: 1e6 };
+
+      const prePending = await wallet.getPending();
+
+      assert.strictEqual(nodeCtx.mempool.size, 0);
+      for (const [delayMethodName, errorMessage] of Object.entries(delayMethod2error)) {
+        delayMethodOnce(nodeCtx.wdb.primary, delayMethodName, TIMEOUT_METHOD);
+
+        let wnodeError = null;
+        nodeCtx.wnode.once('error', e => wnodeError = e);
+
+        let err;
+        try {
+          const sending = wallet.send({
+            abortOnClose: true,
+            outputs: [output]
+          });
+          await nodeCtx.mineBlocks(1, cbAddress);
+          await sending;
+        } catch (e) {
+          err = e;
+        }
+
+        assert.ok(err);
+        assert.strictEqual(err.message, errorMessage(RECEIVED_A_NEW_BLOCK));
+        await sleep(TIMEOUT_FULL);
+
+        assert(wnodeError);
+        assert.strictEqual(wnodeError.message, errorMessage(RECEIVED_A_NEW_BLOCK));
+        assert.strictEqual(wnodeError.name, 'AbortError');
+        assert.strictEqual(wnodeError.cause.message, RECEIVED_A_NEW_BLOCK);
+
+        const pending = await wallet.getPending();
+        assert.strictEqual(pending.length - prePending.length, 0);
+      }
+    });
+
     it('should mine to the secondary/default wallet', async () => {
       const height = 5;
 
@@ -1086,6 +1136,48 @@ describe('Wallet HTTP', function() {
         assert.strictEqual(wnodeError.message, errorMessage(TIMEOUT_TRIGGERED));
         assert.strictEqual(wnodeError.name, 'AbortError');
         assert.strictEqual(wnodeError.cause.message, TIMEOUT_TRIGGERED);
+
+        const pending = await wallet.getPending();
+        assert.strictEqual(pending.length - prePending.length, 0);
+      }
+    });
+
+    it('should abort open on a new block', async () => {
+      if (!feat.FEAT_ABORT_ON_BLOCK)
+        this.skip();
+
+      const prePending = await wallet.getPending();
+
+      assert.strictEqual(nodeCtx.mempool.size, 0);
+
+      for (const [delayMethodName, errorMessage] of Object.entries(delayMethod2error)) {
+        delayMethodOnce(nodeCtx.wdb.primary, delayMethodName, TIMEOUT_METHOD);
+
+        let wnodeError = null;
+        nodeCtx.wnode.once('error', e => wnodeError = e);
+
+        let err;
+        try {
+          const sending = wallet.createOpen({
+            name: name,
+            abortOnClose: true
+          });
+
+          await sleep(10);
+          await nodeCtx.mineBlocks(1, cbAddress),
+          await sending;
+        } catch (e) {
+          err = e;
+        }
+
+        assert.ok(err);
+        assert.strictEqual(err.message, errorMessage(RECEIVED_A_NEW_BLOCK));
+        await sleep(TIMEOUT_FULL);
+
+        assert(wnodeError);
+        assert.strictEqual(wnodeError.message, errorMessage(RECEIVED_A_NEW_BLOCK));
+        assert.strictEqual(wnodeError.name, 'AbortError');
+        assert.strictEqual(wnodeError.cause.message, RECEIVED_A_NEW_BLOCK);
 
         const pending = await wallet.getPending();
         assert.strictEqual(pending.length - prePending.length, 0);
